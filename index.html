@@ -1,0 +1,1901 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Kalshi Pick Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a trading-desk ticket board. Phone = sticky tabs + category chips over a stack of pick tickets;
+   960px+ = ledger rows. Each ticket carries a chance meter (model fill vs Kalshi tick) instead of a row of numbers. */
+:root {
+  --bg: #F1F3F7; --surface: #FFFFFF; --sunk: #E8ECF3; --ink: #10162A; --muted: #5A6378; --line: #DDE2EC;
+  --accent: #2F45C8; --accent-soft: #E6EAFB;
+  --pos: #12764A; --pos-soft: #DFF2E8; --warn: #9A5A00; --warn-soft: #FBEFDA; --bad: #B42318; --bad-soft: #FBE5E2;
+  --c-sports: #C2410C; --c-crypto: #7C3AED; --c-markets: #0E7490; --c-politics: #B91C5C; --c-culture: #4D7C0F;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --shadow: 0 1px 2px rgba(16, 22, 42, 0.05), 0 2px 8px rgba(16, 22, 42, 0.04);
+  --av-bg: 90%; --av-fg: 30%;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B0F18; --surface: #131A26; --sunk: #1B2333; --ink: #E6EAF2; --muted: #95A0B4; --line: #252E3F;
+    --accent: #93A6FF; --accent-soft: #1D2644;
+    --pos: #4FCB8C; --pos-soft: #12301F; --warn: #E9AA4C; --warn-soft: #33260F; --bad: #F37C70; --bad-soft: #3A1B17;
+    --c-sports: #FB923C; --c-crypto: #B79CFF; --c-markets: #4FC3D9; --c-politics: #F47FAE; --c-culture: #A3D65C;
+    --shadow: none; --av-bg: 26%; --av-fg: 82%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B0F18; --surface: #131A26; --sunk: #1B2333; --ink: #E6EAF2; --muted: #95A0B4; --line: #252E3F;
+  --accent: #93A6FF; --accent-soft: #1D2644;
+  --pos: #4FCB8C; --pos-soft: #12301F; --warn: #E9AA4C; --warn-soft: #33260F; --bad: #F37C70; --bad-soft: #3A1B17;
+  --c-sports: #FB923C; --c-crypto: #B79CFF; --c-markets: #4FC3D9; --c-politics: #F47FAE; --c-culture: #A3D65C;
+  --shadow: none; --av-bg: 26%; --av-fg: 82%;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 14px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-g="Sports"] { --cat: var(--c-sports); }
+[data-g="Crypto"] { --cat: var(--c-crypto); }
+[data-g="Markets"] { --cat: var(--c-markets); }
+[data-g="Politics"] { --cat: var(--c-politics); }
+[data-g="Culture & Science"] { --cat: var(--c-culture); }
+
+/* Header */
+.top { display: flex; flex-direction: column; gap: 4px; }
+.toprow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+.top h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(1.45rem, 6.5vw, 1.85rem); letter-spacing: -0.015em; line-height: 1.05; white-space: nowrap; }
+.ico { width: 14px; height: 14px; fill: none; stroke: var(--cat, currentColor); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.sentinel { height: 1px; margin-bottom: -13px; }
+.sticky.stuck { box-shadow: 0 8px 14px -12px rgba(16, 22, 42, 0.35); }
+.stats .sep { color: var(--line); }
+.cd { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.lbl { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .pick .why, .line .why { animation: whyIn 0.22s ease-out; }
+  @keyframes whyIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+}
+
+/* Market group: several lines on the same market */
+.group .ghead { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px 12px; padding: 11px 14px 6px; flex-wrap: wrap; }
+.group .gtitle { font-weight: 600; font-size: 0.98rem; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.group .gsub { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); }
+.lines { list-style: none; margin: 0; padding: 0 0 4px; }
+.line { border-top: 1px solid var(--line); }
+.line:first-child { border-top: 0; }
+.line-main { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "bet ev" "meter meter"; gap: 6px 12px; padding: 9px 14px; }
+.line-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.line-main:hover { background: var(--bg); }
+.line-main .lb { grid-area: bet; font-size: 0.92rem; font-weight: 500; overflow-wrap: anywhere; }
+.line-main .ev { grid-area: ev; }
+.line-main .mrow { grid-area: meter; }
+.line-main .lw { display: none; }
+.line .why { border-top: 1px dashed var(--line); background: var(--bg); padding: 14px; }
+.more-lines { all: unset; cursor: pointer; display: block; padding: 8px 14px 10px; font-size: 0.82rem; font-weight: 600; color: var(--accent); }
+.more-lines:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.empty .next { display: block; margin-top: 6px; font-size: 0.85rem; }
+
+/* Header actions and guide */
+.topacts { display: flex; align-items: center; gap: 6px; }
+.iconbtn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.linkbtn { border: 0; background: transparent; color: var(--accent); font-weight: 600; font-size: 0.86rem; cursor: pointer; padding: 6px 2px; min-height: 32px; }
+.guide { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.ghd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.guide h2 { margin: 0; font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; }
+.gitems { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 18px; }
+.gi { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gi p { margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.45; }
+.gv { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 26px; }
+.meter.demo { width: 140px; }
+.pill.new { background: var(--accent); color: var(--surface); }
+
+/* Tabs: four across, short labels on phones */
+.sticky .tabs { grid-template-columns: 1.25fr 1fr 0.9fr 1fr; }
+.tabs .short { display: none; }
+@media (max-width: 520px) { .tabs .long { display: none; } .tabs .short { display: inline; } .tabs button { font-size: 0.86rem; gap: 5px; } }
+
+/* Category favorite bar */
+.catbar { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; color: var(--muted); }
+.favbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; min-height: 32px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+.favbtn.on { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.chip .fav { color: var(--warn); font-size: 0.8rem; }
+.chip[aria-pressed="true"] .fav { color: inherit; }
+
+/* Filters */
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.filter-btn { flex: 0 0 auto; min-height: 42px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; font-weight: 600; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 6px; }
+.filter-btn[aria-expanded="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.fn { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: var(--surface); font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; }
+.fpanel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; box-shadow: var(--shadow); margin-top: -4px; }
+.frow { display: inline-flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--muted); }
+.frow select { min-height: 38px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 14px; color: var(--ink); }
+.toggle small { color: var(--muted); font-size: 0.76rem; }
+.fpanel .linkbtn { margin-left: auto; }
+#winChips { width: auto; flex-wrap: wrap; }
+#winChips .chip { min-height: 32px; font-size: 0.82rem; padding: 3px 11px; }
+
+/* Steady layout: fixed-height best-pick card, loading placeholders */
+.spot .bet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.3em; }
+.spot .mkt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stats { min-height: 1.45em; }
+.spot-foot { min-height: 34px; }
+.spot-head { min-height: 22px; }
+.skcard { display: flex; flex-direction: column; gap: 10px; padding: 14px; min-height: 96px; }
+.sk { display: block; height: 11px; border-radius: 6px; background: var(--sunk); }
+.sk.w60 { width: 60%; height: 14px; } .sk.w40 { width: 40%; } .sk.w90 { width: 90%; height: 8px; }
+@media (prefers-reduced-motion: no-preference) { .sk { animation: skPulse 1.2s ease-in-out infinite alternate; } @keyframes skPulse { from { opacity: 1; } to { opacity: 0.5; } } }
+html, body { overflow-x: clip; }
+
+/* Pick actions: open on Kalshi, star */
+.phead, .lhead { position: relative; }
+.acts { position: absolute; right: 10px; bottom: 7px; display: flex; gap: 4px; }
+.act { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.95rem; line-height: 1; cursor: pointer; padding: 0; }
+.act:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.act.on { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.act.demo { cursor: default; }
+.pick-main .nums { padding-right: 74px; min-height: 26px; }
+.line-main { padding-right: 84px !important; }
+.lhead .acts { bottom: auto; top: 50%; transform: translateY(-50%); }
+.newdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: 2px; }
+
+/* Track record view */
+.record { display: flex; flex-direction: column; gap: 16px; }
+.rintro { margin: 0; font-size: 0.88rem; color: var(--muted); max-width: 64ch; }
+.rgroup { display: flex; flex-direction: column; gap: 8px; }
+.rgroup > h2 { margin: 4px 0 0; font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.rgroup .ico { width: 16px; height: 16px; }
+.rcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 8px; }
+.rcards .rpanel { height: 100%; }
+.rpanel .sched { font-size: 0.8rem; color: var(--muted); }
+
+/* Record: picks vs results, opened from a routine's card */
+.rcards .rpanel.wide { grid-column: 1 / -1; height: auto; }
+.recbtn { align-self: flex-start; padding-left: 0; }
+.recbox { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 2px; }
+.recsum { font-size: 0.9rem; }
+.recsum b { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.recsum small { display: block; font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+.fchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchips .chip { min-height: 32px; font-size: 0.82rem; padding: 3px 11px; }
+.fchips .chip .k { font-family: var(--font-data); font-size: 0.74rem; opacity: 0.8; }
+.reclist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.recrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.recrow:first-child { border-top: 0; }
+.recrow .rb { font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
+.recrow .rm, .recrow .rw { grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.recrow .rn { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 0.8rem; color: var(--muted); }
+.recrow .rn b { font-family: var(--font-data); color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.recrow .rn .meter { width: 120px; flex: none; }
+.recrow .call-ok { color: var(--pos); font-weight: 600; }
+.recrow .call-miss { color: var(--bad); font-weight: 600; }
+
+/* Board filters: sports by sport, trending topics across every board */
+.flabel { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); align-self: center; white-space: nowrap; padding-right: 2px; }
+#topics .chip, #sportsF .chip { min-height: 32px; font-size: 0.83rem; padding: 3px 11px; }
+.chip .k { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); }
+.chip[aria-pressed="true"] .k { color: inherit; opacity: 0.8; }
+
+/* Back to top */
+.totop { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--ink); color: var(--bg); font-size: 1.2rem; font-weight: 700; cursor: pointer; box-shadow: 0 6px 18px rgba(16, 22, 42, 0.25); z-index: 8; }
+.sync { display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--muted); padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); white-space: nowrap; }
+.sync .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync[data-state="live"] .dot { background: var(--pos); box-shadow: 0 0 0 3px var(--pos-soft); }
+.sync[data-state="late"] .dot { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+.sync[data-state="off"] .dot { background: var(--bad); }
+
+/* Spotlight: the best pick right now */
+.spot { background: var(--ink); color: var(--bg); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.spot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.spot .eyebrow { color: inherit; opacity: 0.7; }
+.spot .bet { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.15; overflow-wrap: anywhere; }
+.spot .mkt { font-size: 0.85rem; color: inherit; opacity: 0.78; white-space: normal; }
+.spot-body { display: flex; flex-direction: column; gap: 8px; }
+.spot .meter { --track: rgba(127, 137, 160, 0.35); --tick: currentColor; }
+.spot-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.8rem; opacity: 0.85; }
+.spot-btn { border: 1px solid currentColor; background: transparent; border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 0.82rem; font-weight: 600; min-height: 34px; }
+.spot .why { background: var(--surface); color: var(--ink); border-radius: 12px; padding: 12px; margin-top: 2px; }
+.stats { display: flex; gap: 4px 8px; font-size: 0.8rem; color: var(--muted); padding: 0 2px; flex-wrap: wrap; }
+.stats b { font-family: var(--font-data); color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; margin-right: 4px; }
+
+/* Track-record strip */
+.strip-wrap { overflow-x: auto; scrollbar-width: none; }
+.strip-wrap::-webkit-scrollbar { display: none; }
+.strip { display: flex; gap: 6px; width: max-content; }
+.sc { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 0.78rem; white-space: nowrap; cursor: pointer; }
+.sc b { font-weight: 600; }
+.sc .v { color: var(--muted); }
+.sc.mute { cursor: default; color: var(--muted); }
+.tr { font-size: 0.68rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.tr.good { background: var(--pos-soft); color: var(--pos); }
+.tr.bad { background: var(--bad-soft); color: var(--bad); }
+.tr.none { background: var(--sunk); color: var(--muted); }
+
+/* Sticky nav */
+.sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--bg); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 8px max(16px, env(safe-area-inset-left, 0px)) 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--sunk); border-radius: 12px; padding: 3px; gap: 3px; }
+.tabs button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; cursor: pointer; font-weight: 600; font-size: 0.92rem; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.tabs .n { font-family: var(--font-data); font-size: 0.76rem; font-weight: 500; color: var(--muted); }
+.chips-wrap { overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.chips-wrap::-webkit-scrollbar { display: none; }
+.chips { display: flex; gap: 6px; width: max-content; }
+.chip { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 4px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; white-space: nowrap; font-size: 0.88rem; font-weight: 500; }
+.chip[aria-pressed="true"] .ico { stroke: currentColor; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip.dead { opacity: 0.45; }
+.chip.sub { min-height: 32px; font-size: 0.83rem; padding: 3px 11px; }
+.chip .fresh { width: 6px; height: 6px; border-radius: 50%; background: var(--line); flex: none; }
+.chip[data-fresh="ok"] .fresh { background: var(--pos); }
+.chip[data-fresh="late"] .fresh { background: var(--warn); }
+.chip[aria-pressed="true"] .tr { background: transparent; color: inherit; outline: 1px solid currentColor; }
+
+/* Today's record */
+.today { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; gap: 8px; }
+.today .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.today .big { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.today .rlbl { font-size: 0.8rem; color: var(--muted); }
+.dots { display: flex; flex-wrap: wrap; gap: 4px; }
+.dots i { width: 10px; height: 10px; border-radius: 3px; display: block; }
+.dots i.w { background: var(--pos); }
+.dots i.l { background: var(--bad); }
+.dots i.o { background: var(--sunk); outline: 1px solid var(--line); outline-offset: -1px; }
+.today .by { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--muted); }
+.today .by b { color: var(--ink); font-weight: 600; }
+.today .note { font-size: 0.74rem; color: var(--muted); }
+
+/* Routine panel */
+.rpanel { padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; display: flex; flex-direction: column; gap: 6px; }
+.rpanel h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rpanel .when { color: var(--muted); font-size: 0.84rem; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+.pill.ok { background: var(--pos-soft); color: var(--pos); }
+.pill.late { background: var(--warn-soft); color: var(--warn); }
+.pill.none, .pill.closed { background: var(--sunk); color: var(--muted); }
+.pill.won { background: var(--pos-soft); color: var(--pos); }
+.pill.lost { background: var(--bad-soft); color: var(--bad); }
+.verdict { font-size: 0.88rem; }
+.verdict.bad { color: var(--bad); } .verdict.good { color: var(--pos); } .verdict.none { color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; }
+.facts b.bad { color: var(--bad); }
+
+/* Controls */
+.controls { display: flex; gap: 8px; }
+.controls input[type="search"] { flex: 1 1 0; min-width: 0; min-height: 42px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 16px; }
+.controls select { flex: 0 0 auto; min-height: 42px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 14px; }
+.viewrow { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--sunk); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { min-height: 34px; padding: 3px 12px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-size: 0.86rem; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-size: 0.86rem; white-space: nowrap; cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.count { font-size: 0.8rem; color: var(--muted); margin-left: auto; text-align: right; }
+.legend { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; font-size: 0.75rem; color: var(--muted); margin-top: -2px; }
+.legend .k { display: inline-flex; align-items: center; gap: 5px; }
+.legend .sw { width: 18px; height: 6px; border-radius: 3px; background: var(--cat, var(--accent)); display: inline-block; }
+.legend .tk { width: 2px; height: 11px; background: var(--ink); display: inline-block; border-radius: 1px; }
+
+/* Chance meter: model chance as a fill, Kalshi price as a tick */
+.meter { display: block; position: relative; height: 8px; border-radius: 4px; background: var(--track, var(--sunk)); }
+.meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--cat, var(--accent)); }
+.meter .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--tick, var(--ink)); }
+.meter.big { height: 12px; border-radius: 6px; }
+.meter.big .fill { border-radius: 6px; }
+.meter.big .tick { top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; }
+
+/* Value tier badge */
+.val { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; letter-spacing: 0.01em; }
+.val.strong { background: var(--pos); color: var(--surface); }
+.val.good { background: var(--pos-soft); color: var(--pos); }
+.val.small { background: var(--sunk); color: var(--ink); }
+.val.thin, .val.none { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.val.neg { background: var(--bad-soft); color: var(--bad); }
+.spot .val.strong { background: var(--pos); color: var(--ink); }
+
+/* Pick tickets */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pick { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.pick.is-closed { opacity: 0.6; }
+.pick.open { border-color: color-mix(in srgb, var(--cat, var(--accent)) 45%, var(--line)); }
+.pick-main { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "what ev" "meter meter" "nums nums"; gap: 7px 12px; padding: 11px 14px 10px; }
+.pick-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.what { grid-area: what; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bet { font-weight: 600; font-size: 0.98rem; line-height: 1.25; overflow-wrap: anywhere; }
+.mkt { color: var(--muted); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev { grid-area: ev; align-self: start; }
+.pick .mrow { grid-area: meter; }
+.mrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mrow .meter { flex: 1 1 auto; min-width: 0; }
+.mp { flex: none; min-width: 2.6em; text-align: right; font-family: var(--font-data); font-size: 0.78rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.spot .mp { color: inherit; font-size: 0.9rem; }
+.nums { grid-area: nums; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-size: 0.78rem; color: var(--muted); }
+.rt { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.74rem; color: var(--cat, var(--accent)); white-space: nowrap; }
+.when { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.when i { font-style: normal; font-family: var(--font-body); }
+.chev { margin-left: auto; font-size: 0.78rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
+.listhead { display: none; }
+
+/* Why drill-down */
+.why { display: flex; flex-direction: column; gap: 12px; }
+.pick .why { border-top: 1px solid var(--line); background: var(--bg); padding: 14px; }
+.why h3 { margin: 0; font-family: var(--font-display); font-size: 1rem; font-weight: 600; letter-spacing: 0.01em; }
+.why .lead { font-size: 0.92rem; line-height: 1.5; max-width: 62ch; }
+.why .said { margin: 0; font-size: 0.92rem; line-height: 1.5; max-width: 64ch; padding: 9px 12px; border-left: 3px solid var(--cat, var(--accent)); background: var(--surface); border-radius: 0 10px 10px 0; }
+.chance { max-width: 560px; display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: center; gap: 6px 10px; font-size: 0.82rem; }
+.chance .nm { color: var(--muted); }
+.chance .pc { font-family: var(--font-data); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.chance .bar { height: 10px; border-radius: 5px; background: var(--sunk); position: relative; overflow: hidden; }
+.chance .bar span { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+.chance .bar.m span { background: var(--cat, var(--accent)); }
+.chance .bar.k span { background: var(--muted); }
+.chance .bar.a span { background: var(--pos); }
+.reasons { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.reasons li { position: relative; padding-left: 16px; font-size: 0.88rem; line-height: 1.45; max-width: 64ch; }
+.reasons li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; border-radius: 50%; background: var(--cat, var(--accent)); }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.flag { font-size: 0.78rem; padding: 3px 9px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-weight: 500; }
+.trustnote { font-size: 0.84rem; padding: 9px 11px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.trustnote.bad { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
+.trustnote.good { border-color: color-mix(in srgb, var(--pos) 35%, var(--line)); }
+.raw { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); overflow-wrap: anywhere; }
+.details { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 14px; font-size: 0.82rem; }
+.details div { display: flex; flex-direction: column; min-width: 0; }
+.details dt { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+.details dd.mono { font-family: var(--font-data); font-size: 0.78rem; }
+.copy { align-self: flex-start; min-height: 34px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 0.82rem; }
+
+@media (min-width: 960px) {
+  .wrap { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+  .sticky { margin-inline: -24px; padding-inline: 24px; }
+  .chips-wrap { margin-inline: 0; padding-inline: 0; }
+  .sticky .tabs { max-width: 560px; }
+  .spot { flex-direction: row; align-items: center; gap: 20px; }
+  .spot > .spot-body { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .list { gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .pick { border: 0; border-radius: 0; border-top: 1px solid var(--line); box-shadow: none; }
+  .pick:first-child { border-top: 0; }
+  .listhead, .pick-main, .line-main { display: grid; grid-template-columns: minmax(0, 1fr) 11rem 6rem 9.5rem; grid-template-areas: none; gap: 0 18px; align-items: center; }
+  .listhead, .pick-main { padding-right: 96px !important; }
+  .line-main { padding-right: 96px !important; }
+  .pick-main .nums { padding-right: 0; }
+  .phead .acts { bottom: auto; top: 50%; transform: translateY(-50%); }
+  .listhead { padding: 8px 15px 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  .pick-main { padding: 11px 14px; }
+  .pick-main:hover { background: var(--bg); }
+  .nums { display: contents; }
+  .nums .rt, .chev { display: none; }
+  .lbl { display: inline; }
+  .what { grid-column: 1; grid-row: 1; }
+  .pick .mrow, .line-main .mrow { grid-column: 2; grid-row: 1; }
+  .ev, .line-main .ev { grid-column: 3; grid-row: 1; align-self: center; }
+  .nums .when { grid-column: 4; grid-row: 1; font-size: 0.8rem; white-space: normal; line-height: 1.3; }
+  .line-main { padding: 8px 14px 8px 30px; }
+  .line-main .lb { grid-column: 1; grid-row: 1; }
+  .line-main .lw { display: inline; grid-column: 4; grid-row: 1; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+  .group .ghead { padding-bottom: 4px; }
+  .pick .why, .line .why { padding: 16px 20px 18px 30px; }
+}
+.more-btn, .show-closed { align-self: center; min-height: 44px; padding: 8px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; font-weight: 600; }
+.show-closed { margin-top: 10px; min-height: 40px; }
+.empty { padding: 26px 18px; text-align: center; background: var(--surface); border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 4px; }
+.foot { font-size: 0.76rem; color: var(--muted); max-width: 72ch; line-height: 1.5; }
+@media (prefers-reduced-motion: no-preference) {
+  .chip, .pick-main, .more-btn, .tabs button, .seg button { transition: background-color 0.15s ease, color 0.15s ease; }
+  .meter .fill, .chance .bar span { transition: width 0.4s ease; }
+}
+
+/* ---------- Fun layer ---------- */
+.av { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; margin-right: 7px; vertical-align: -6px; flex: none;
+  background: hsl(var(--h, 220) 55% var(--av-bg)); color: hsl(var(--h, 220) 60% var(--av-fg)); font-family: var(--font-display); font-weight: 700; font-size: 0.68rem; letter-spacing: 0.02em; }
+.spot .av { width: 30px; height: 30px; font-size: 0.8rem; vertical-align: -5px; }
+.form { font-size: 0.78rem; white-space: nowrap; }
+.rpanel h2 .form { font-family: var(--font-body); font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--sunk); }
+.rpanel h2 .form.hot { background: var(--warn-soft); color: var(--warn); }
+.rpanel h2 .form.cold { background: var(--accent-soft); color: var(--accent); }
+.soon { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 600; color: var(--warn); white-space: nowrap; }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); position: relative; flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .pulse::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--warn); opacity: 0; animation: ring 1.6s ease-out infinite; }
+  @keyframes ring { 0% { transform: scale(0.4); opacity: 0.8; } 100% { transform: scale(1.4); opacity: 0; } }
+  .dots i.pop { animation: pop 0.5s cubic-bezier(.2, 1.6, .4, 1) both; }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  .shake { animation: shake 0.5s ease-in-out 2; }
+  @keyframes shake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+  .toast.show { animation: toastIn 0.3s ease-out; }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+}
+.recap-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mood { font-size: 0.82rem; font-weight: 600; }
+.calls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 14px; }
+.call { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 10px; background: var(--bg); min-width: 0; }
+.call .ck { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+.call.good .ck { color: var(--pos); } .call.bad .ck { color: var(--bad); }
+.call .cv { font-size: 0.86rem; overflow-wrap: anywhere; }
+.yday { font-size: 0.82rem; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 6px; }
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 20; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 21; max-width: min(92vw, 460px); padding: 10px 16px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 0.9rem; font-weight: 600; box-shadow: 0 8px 24px rgba(16, 22, 42, 0.3); text-align: center; }
+.rpanel .when { white-space: normal; font-family: var(--font-body); }
+
+/* Story */
+.story { display: flex; flex-direction: column; gap: 8px; max-width: 64ch; }
+.story p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
+.story .story-wait { color: var(--muted); font-style: italic; }
+.story .story-note { font-size: 0.78rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .story.writing p:last-child::after { content: "▍"; margin-left: 2px; color: var(--accent); animation: blink 0.9s steps(1) infinite; } @keyframes blink { 50% { opacity: 0; } } }
+.numtoggle { align-self: flex-start; padding-left: 0; }
+.numbers { display: flex; flex-direction: column; gap: 12px; }
+.today .nores { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="toprow">
+      <span class="eyebrow" id="today-date">Today</span>
+      <div class="topacts">
+        <button type="button" class="iconbtn" id="helpBtn" aria-label="How to read this board" title="How to read this board">?</button>
+        <div class="sync" id="sync" data-state="wait"><span class="dot"></span><span id="syncText">Connecting…</span></div>
+      </div>
+    </div>
+    <h1>Kalshi Pick Board</h1>
+  </header>
+
+  <section class="guide" id="guide" hidden aria-label="How to read this board">
+    <div class="ghd"><h2>How to read the board</h2><button type="button" class="linkbtn" id="guideClose">Got it</button></div>
+    <div class="gitems">
+      <div class="gi"><div class="gv"><span class="val strong">Love it</span><span class="val good">Like it</span><span class="val small">Maybe</span></div><p>How good the price looks after checking the model against Kalshi. “Love it” is best. “Meh” and “Pass” are hidden unless you turn off “Worth a look”.</p></div>
+      <div class="gi"><div class="gv"><span class="meter demo"><span class="fill" style="width:65%"></span><span class="tick" style="left:22%"></span></span></div><p>The colored bar and the number beside it are the model's chance. The thin line is Kalshi's price. The further the bar runs past the line, the more the model likes it.</p></div>
+      <div class="gi"><div class="gv"><span class="tr bad">Kalshi ahead</span><span class="tr good">Model ahead</span><span class="tr none">Unproven</span></div><p>Whether a routine has been more accurate than Kalshi so far. The board trusts each model more or less to match. See the Record tab.</p></div>
+      <div class="gi"><div class="gv"><span class="pill new">New</span><span class="act demo">↗</span><span class="act demo on">★</span></div><p>New means it appeared since your last visit. Tap ↗ to open the market on Kalshi and ☆ to save a pick to Starred. Tap any pick to see why.</p></div>
+    </div>
+  </section>
+
+  <section class="spot" id="spot" hidden></section>
+  <div class="stats" id="stats"></div>
+
+  <div class="sentinel" id="sentinel" aria-hidden="true"></div>
+  <nav class="sticky" id="nav" aria-label="Board navigation">
+    <div class="tabs" role="group" aria-label="View">
+      <button type="button" id="tLive" aria-pressed="true"><span class="long">Live today</span><span class="short">Today</span> <span class="n" id="tLiveN"></span></button>
+      <button type="button" id="tAll" aria-pressed="false"><span class="long">All picks</span><span class="short">All</span> <span class="n" id="tAllN"></span></button>
+      <button type="button" id="tStar" aria-pressed="false">★<span class="long">&nbsp;Starred</span> <span class="n" id="tStarN"></span></button>
+      <button type="button" id="tRec" aria-pressed="false">Record</button>
+    </div>
+    <div class="chips-wrap" id="groupWrap"><div class="chips" id="groups" role="group" aria-label="Filter by category"></div></div>
+    <div class="chips-wrap" id="sportWrap" hidden><div class="chips" id="sportsF" role="group" aria-label="Filter by sport"></div></div>
+  </nav>
+
+  <section class="record" id="recordView" hidden></section>
+
+  <div class="stack" id="boardView">
+    <div class="chips-wrap" id="topicWrap" hidden><div class="chips" id="topics" role="group" aria-label="Trending topics across every board"></div></div>
+    <div class="catbar" id="catbar" hidden></div>
+    <div class="chips-wrap" id="subWrap" hidden><div class="chips" id="subs" role="group" aria-label="Filter by routine"></div></div>
+    <section class="today" id="today" hidden></section>
+    <section class="rpanel" id="rpanel" hidden></section>
+
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search picks" autocomplete="off" aria-label="Search bets, markets and tickers">
+      <button type="button" class="filter-btn" id="filterBtn" aria-expanded="false" aria-controls="filterPanel">Filters <span class="fn" id="filterN" hidden></span></button>
+    </div>
+    <div class="fpanel" id="filterPanel" hidden>
+      <label class="frow" for="sort"><span>Sort by</span>
+        <select id="sort">
+          <option value="ev">Best value</option>
+          <option value="close">Closing soonest</option>
+          <option value="model">Most likely to hit</option>
+          <option value="edge">Biggest gap vs Kalshi</option>
+          <option value="raw">Raw model value</option>
+        </select>
+      </label>
+      <div class="frow"><span>Show</span>
+        <div class="seg" role="group" aria-label="How many markets">
+          <button type="button" id="vTop" aria-pressed="true">Top 10</button>
+          <button type="button" id="vAll" aria-pressed="false">All</button>
+        </div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="openOnly" checked> Open only</label>
+      <label class="toggle"><input type="checkbox" id="worthOnly" checked> Worth a look <small>hides Meh and Pass</small></label>
+      <button type="button" class="linkbtn" id="resetF">Reset filters</button>
+    </div>
+    <div class="viewrow">
+      <div class="chips" id="winChips" role="group" aria-label="Time window"></div>
+      <div class="count" id="count" aria-live="polite"></div>
+    </div>
+
+    <div class="listhead" aria-hidden="true"><span>Bet</span><span>Model chance</span><span>Value</span><span>Closes</span></div>
+    <ol class="list" id="list"></ol>
+    <button class="more-btn" id="moreBtn" type="button" hidden>Show 100 more</button>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+
+  <p class="foot">Value blends each model chance with Kalshi's price, weighted by how that routine has scored so far: 70% model where it has beaten Kalshi, 50% while it has no record, 30% where Kalshi has been more accurate. “Love it” means about +$50 or more expected per $100 after that adjustment, “Like it” +$20 to +$50, “Maybe” +$5 to +$20, “Meh” under +$5 and “Pass” below zero. Stars, “New” marks and the guide are saved in this browser only. Picks are model output for tracking, not advice.</p>
+</div>
+<button type="button" class="totop" id="toTop" hidden aria-label="Back to top">↑</button>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var R = { closeMs: 0, closeText: 1, event: 2, type: 3, market: 4, bet: 5, ev: 6, model: 7, kalshi: 8, cost: 9, odds: 10, edge: 11, source: 12, basis: 13, ticker: 14, rank: 15, result: 16, why: 17 };
+  var PAGE = 100, TOP = 10, TZ = "America/New_York";
+  var st = { routines: new Map(), chunks: new Map(), sync: null, haveR: false, haveC: false,
+    tab: load("tab", "live"), grp: load("grp", "all"), sel: load("sel", "all"), q: "", sort: load("sort", "ev"),
+    openOnly: load("open", true), worth: load("worth", true), view: load("view", "top"), shown: PAGE, rows: [], dbState: "wait", openKeys: new Set(), openGroups: new Set(), spotOpen: false,
+    win: load("win", "all"), stars: new Set(load("stars", [])), favs: load("favs", []), filtersOpen: false,
+    sport: load("sport", "all"), topic: load("topic", ""), trending: [], recs: new Map(), recOpen: new Set(), recF: {} };
+  if (["live", "all", "star", "record"].indexOf(st.tab) === -1) st.tab = "live";
+  // A favorite category opens by default
+  if (st.favs.length) { st.grp = st.favs[0]; st.sel = "all"; }
+
+  function load(k, d) { try { var v = localStorage.getItem("pickboard." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem("pickboard." + k, JSON.stringify(v)); } catch (e) {} }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function num(v) { if (v == null || v === "") return null; var n = Number(v); return isFinite(n) ? n : null; }
+  function fmtPct(v) { var n = num(v); return n == null ? "–" : (Math.round(n * 10) / 10) + "%"; }
+  function fmtEv(v) { var n = num(v); if (n == null) return "–"; var r = Math.round(n); return (r > 0 ? "+$" : r < 0 ? "−$" : "$") + Math.abs(r).toLocaleString("en-US"); }
+  function fmtNum(n) { var a = Math.abs(n); return n.toLocaleString("en-US", { maximumFractionDigits: a >= 1000 ? 0 : a >= 10 ? 2 : 4 }); }
+  function ago(ms) {
+    if (!ms) return "never";
+    var m = Math.round((Date.now() - ms) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + " min ago";
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + " h " + (m % 60) + " min ago";
+    var d = Math.floor(h / 24);
+    return d + (d === 1 ? " day ago" : " days ago");
+  }
+  function shortAgo(ms) {
+    var m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+    if (m < 1) return "now";
+    if (m < 60) return m + "m ago";
+    var h = Math.floor(m / 60);
+    return h < 24 ? h + "h ago" : Math.floor(h / 24) + "d ago";
+  }
+  function clock(ms) {
+    try { return new Date(ms).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: TZ }) + " ET"; }
+    catch (e) { return new Date(ms).toLocaleString(); }
+  }
+  function etDay(ms) { try { return new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ }); } catch (e) { return new Date(ms).toDateString(); } }
+  function freshness(r) {
+    if (!r || !r.lastRunMs) return "none";
+    var lateMs = (num(r.lateAfterMin) || 1560) * 60000;
+    return Date.now() - r.lastRunMs > lateMs ? "late" : "ok";
+  }
+  function isOpen(a) { var c = num(a[R.closeMs]); return !c || c > Date.now(); }
+  function isToday(a) { var c = num(a[R.closeMs]); return !!c && etDay(c) === etDay(Date.now()); }
+  function keyOf(x) { return x.id + "|" + (x.a[R.ticker] || "") + "|" + (x.a[R.bet] || ""); }
+
+  // "New since last visit": a short hash of each pick seen last time, kept in this browser
+  function hkey(x) { if (!x.h) { var s = keyOf(x), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; x.h = (h >>> 0).toString(36); } return x.h; }
+  var seenPrev = null;
+  try { var sv = localStorage.getItem("pickboard.seen"); if (sv) seenPrev = new Set(JSON.parse(sv)); } catch (e) {}
+  function isNew(x) { return !!seenPrev && !seenPrev.has(hkey(x)); }
+  var seenTimer = null;
+  function scheduleSeen() {
+    clearTimeout(seenTimer);
+    seenTimer = setTimeout(function () { try { localStorage.setItem("pickboard.seen", JSON.stringify(st.rows.map(hkey))); } catch (e) {} }, 6000);
+  }
+
+  // Kalshi market link from the ticker's series (the part before the first dash)
+  function kalshiUrl(x) {
+    var t = String(x.a[R.ticker] || "").trim(); if (!t) return null;
+    var series = t.split("-")[0]; if (!/^[A-Za-z0-9]+$/.test(series)) return null;
+    return "https://kalshi.com/markets/" + series.toLowerCase();
+  }
+
+  // Live today time window
+  var WINS = [["all", "Rest of today"], ["1h", "Next hour"], ["3h", "Next 3 hours"]];
+  function inWindow(x) {
+    if (st.tab !== "live" || st.win === "all") return true;
+    var c = num(x.a[R.closeMs]), now = Date.now(), hrs = st.win === "1h" ? 1 : 3;
+    return !!c && c > now && c - now <= hrs * 3600000;
+  }
+
+  // Subject categories
+  var GROUPS = { "sports-live": "Sports", "sports-daily": "Sports", "crypto-15m": "Crypto", "topic-crypto": "Crypto",
+    "topic-finance": "Markets", "topic-commodities": "Markets", "topic-economics": "Markets",
+    "topic-politics": "Politics", "topic-elections": "Politics", "topic-mentions": "Politics",
+    "topic-culture": "Culture & Science", "topic-climate": "Culture & Science", "topic-techandscience": "Culture & Science" };
+  var GROUP_ORDER = ["Sports", "Crypto", "Markets", "Politics", "Culture & Science"];
+  var LABELS = { "topic-crypto": "Daily crypto", "crypto-15m": "15-min crypto" };
+  function grpOf(id) { return GROUPS[id] || ((st.routines.get(id) || {}).group) || "Other"; }
+  function labelOf(id) { var r = st.routines.get(id) || {}; return LABELS[id] || r.short || r.name || id; }
+  function valueTier(v) {
+    var n = num(v);
+    if (n == null) return { t: "No price", c: "none" };
+    if (n >= 50) return { t: "Love it", c: "strong" };
+    if (n >= 20) return { t: "Like it", c: "good" };
+    if (n >= 5) return { t: "Maybe", c: "small" };
+    if (n >= 0) return { t: "Meh", c: "thin" };
+    return { t: "Pass", c: "neg" };
+  }
+
+  // ---------- Category icons ----------
+  var ICONS = {
+    "Sports": '<circle cx="8" cy="8" r="6"/><path d="M2.6 6.4c3.2.9 7.6.9 10.8 0M2.6 9.6c3.2-.9 7.6-.9 10.8 0"/>',
+    "Crypto": '<circle cx="8" cy="8" r="6"/><path d="M6.5 5h2.2a1.5 1.5 0 0 1 0 3H6.5h2.6a1.5 1.5 0 0 1 0 3H6.5zM7.2 4v1M7.2 11v1"/>',
+    "Markets": '<path d="M2 12.5l3.8-4 2.8 2.2L14 4.5"/><path d="M10.5 4.5H14V8"/>',
+    "Politics": '<rect x="2.5" y="7" width="11" height="6.5" rx="1"/><path d="M5.5 7V2.5h5V7M6 10.2h4"/>',
+    "Culture & Science": '<path d="M8 1.8l1.5 4.7 4.7 1.5-4.7 1.5L8 14.2l-1.5-4.7L1.8 8l4.7-1.5z"/>'
+  };
+  function icon(g) {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("class", "ico"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = ICONS[g] || '<circle cx="8" cy="8" r="5"/>';
+    return s;
+  }
+
+  // ---------- Sport icons for sports picks ----------
+  var SPORT_ICONS = {
+    basketball: '<circle cx="8" cy="8" r="6"/><path d="M8 2v12M2 8h12M3.9 3.9c2.1 2.2 2.1 6 0 8.2M12.1 3.9c-2.1 2.2-2.1 6 0 8.2"/>',
+    soccer: '<circle cx="8" cy="8" r="6"/><path d="M8 5.4l2.2 1.6-.8 2.6H6.6l-.8-2.6z"/><path d="M8 5.4V2.2M10.2 7l2.9-1M9.4 9.6l1.7 2.5M6.6 9.6l-1.7 2.5M5.8 7l-2.9-1"/>',
+    tennis: '<circle cx="8" cy="8" r="6"/><path d="M3.3 4.3c2.4 1.9 2.4 5.5 0 7.4M12.7 4.3c-2.4 1.9-2.4 5.5 0 7.4"/>',
+    baseball: '<circle cx="8" cy="8" r="6"/><path d="M4.7 3.1c1.5 1.5 1.5 8.3 0 9.8M11.3 3.1c-1.5 1.5-1.5 8.3 0 9.8M4.3 5.6l1.3-.3M4.3 8h1.4M4.3 10.4l1.3.3M11.7 5.6l-1.3-.3M11.7 8h-1.4M11.7 10.4l-1.3.3"/>',
+    hockey: '<ellipse cx="8" cy="10.2" rx="5.2" ry="2"/><path d="M2.8 10.2V8.4c0-1.1 2.3-2 5.2-2s5.2.9 5.2 2v1.8"/>',
+    football: '<ellipse cx="8" cy="8" rx="6.3" ry="3.6" transform="rotate(-35 8 8)"/><path d="M6.3 9.7l3.4-3.4M6.9 7.7l1.4 1.4M7.9 6.7l1.4 1.4"/>',
+    cricket: '<path d="M3 13.2l6.3-6.3 1.6 1.6-6.3 6.3z"/><path d="M10.1 7.7l2.6-2.6"/><circle cx="12.4" cy="11.6" r="1.6"/>'
+  };
+  function sportOf(x) {
+    if (grpOf(x.id) !== "Sports") return null;
+    var a = x.a, ev = String(a[R.event] || ""), s = [a[R.source], ev, a[R.market], a[R.type], a[R.bet]].join(" ");
+    if (/tennis|\bATP\b|\bWTA\b|\bITF\b|Challenger|\b[MW]\d{2,3}\b|win set|Set score/i.test(s)) return "tennis";
+    if (/cricket|\bT20\b|\bODI\b|\bIPL\b/i.test(s)) return "cricket";
+    if (/hockey|\bNHL\b|\bKHL\b|\bAHL\b/i.test(s)) return "hockey";
+    if (/baseball|\bMLB\b|\bKBO\b|\bNPB\b|runs scored|strikeout|total bases|Hits\b|RBI/i.test(s)) return "baseball";
+    if (/\bNFL\b|NCAAF|\bCFL\b|touchdown|passing yards|rushing yards|receiving yards/i.test(s)) return "football";
+    if (/basketball|\bNBA\b|\bWNBA\b|\bNBL\b|EuroLeague|NCAA Women|NCAA Men|rebounds|assists|three-pointers/i.test(s)) return "basketball";
+    if (/soccer|goals?\b|BTTS|Both Teams|Liga|League|Champions|\bMLS\b|Premier|Serie A|Bundesliga|Ligue|\bAFC\b|\bCup\b/i.test(s)) return "soccer";
+    if (/points scored|\bQ[1-4]\b/i.test(s)) return "basketball";
+    if (/Football model/i.test(s)) return "football";
+    return null;
+  }
+  function pickIcon(x) {
+    var sp = sportOf(x);
+    if (!sp) return icon(grpOf(x.id));
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("class", "ico"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = SPORT_ICONS[sp];
+    return s;
+  }
+
+  // ---------- Initials badges for named teams, players, candidates, artists, films ----------
+  function personOf(x) {
+    var a = x.a, t = String(a[R.type] || ""), b = String(a[R.bet] || "").replace(/^(YES|NO|NOT):\s*/i, "").replace(/\?$/, ""), m;
+    if (/^Pick one/i.test(t)) return (/[:>]|\d/.test(b) || b.length > 40) ? null : b;
+    if ((m = b.match(/^(.+?)\s+(?:wins|to win)\b/i))) return m[1];
+    if ((m = b.match(/^([A-Z][\w'.-]+(?:\s+[A-Z][\w'.-]+){0,3}):\s/))) return m[1];
+    return null;
+  }
+  function avatar(name) {
+    if (!name) return null;
+    var parts = name.replace(/[^\p{L}\s'-]/gu, "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return null;
+    var ini = (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0][1] || ""))).toUpperCase();
+    var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+    var s = el("span", "av", ini); s.style.setProperty("--h", String(Math.abs(h) % 360)); s.setAttribute("aria-hidden", "true");
+    return s;
+  }
+
+  // ---------- Celebrations for starred picks ----------
+  var celebrated = new Set(load("celebrated", []));
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.hidden = false;
+    t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+    clearTimeout(toast.timer); toast.timer = setTimeout(function () { t.hidden = true; }, 4500);
+  }
+  function confetti() {
+    try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) {}
+    var c = el("canvas", "confetti"), dpr = window.devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+    c.width = W * dpr; c.height = H * dpr; document.body.appendChild(c);
+    var g = c.getContext("2d"); g.scale(dpr, dpr);
+    var cs = getComputedStyle(document.documentElement);
+    var cols = ["--pos", "--accent", "--c-sports", "--c-crypto", "--c-markets", "--c-politics", "--c-culture"].map(function (v) { return cs.getPropertyValue(v).trim() || "#2F45C8"; });
+    var ps = [];
+    for (var i = 0; i < 150; i++) ps.push({ x: W / 2 + (Math.random() - 0.5) * 80, y: H * 0.35, vx: (Math.random() - 0.5) * 13, vy: -Math.random() * 12 - 4, r: Math.random() * 6 + 5, a: Math.random() * 6, va: (Math.random() - 0.5) * 0.3, c: cols[i % cols.length] });
+    var t0 = performance.now();
+    (function frame(t) {
+      var dt = (t - t0) / 1000; g.clearRect(0, 0, W, H);
+      ps.forEach(function (p) {
+        p.vy += 0.35; p.x += p.vx; p.y += p.vy; p.vx *= 0.99; p.a += p.va;
+        g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.globalAlpha = Math.max(0, 1 - dt / 1.9); g.fillStyle = p.c; g.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); g.restore();
+      });
+      if (dt < 1.9) requestAnimationFrame(frame); else c.remove();
+    })(t0);
+  }
+  function checkResults() {
+    if (!st.ready) return;
+    var wins = [], losses = [];
+    st.rows.forEach(function (x) {
+      var k = keyOf(x), r = x.a[R.result];
+      if (!st.stars.has(k) || (r !== "W" && r !== "L")) return;
+      var ck = k + "|" + r; if (celebrated.has(ck)) return;
+      celebrated.add(ck); (r === "W" ? wins : losses).push(x);
+    });
+    if (!wins.length && !losses.length) return;
+    save("celebrated", Array.from(celebrated).slice(-500));
+    if (wins.length) { confetti(); toast((wins.length > 1 ? wins.length + " of your starred picks won" : "Your starred pick won: " + plainBet(wins[0])) + " 🎉"); }
+    else toast(losses.length > 1 ? losses.length + " starred picks lost" : "Starred pick lost: " + plainBet(losses[0]));
+    losses.forEach(function (x) { document.querySelectorAll('[data-k="' + CSS.escape(keyOf(x)) + '"]').forEach(function (n) { n.classList.remove("shake"); void n.offsetWidth; n.classList.add("shake"); }); });
+  }
+
+  // ---------- Closing soon ----------
+  function soonInfo(x) {
+    var c = num(x.a[R.closeMs]), now = Date.now();
+    if (!c || c <= now || c - now > 3600000) return null;
+    var r = st.routines.get(x.id) || {};
+    return r.timeLabel === "Starts" ? "Starting soon" : "Closing soon";
+  }
+  function soonBadge(x) {
+    var t = soonInfo(x); if (!t) return null;
+    var b = el("span", "soon"); b.appendChild(el("span", "pulse")); b.appendChild(document.createTextNode(t));
+    return b;
+  }
+
+  // ---------- Hot and cold: recent results against what the model expected ----------
+  function form(id) {
+    var graded = st.rows.filter(function (x) { return x.id === id && (x.a[R.result] === "W" || x.a[R.result] === "L") && num(x.a[R.model]) != null; });
+    var n, wins, exp, src;
+    if (graded.length >= 8) {
+      graded.sort(function (p, q) { return (num(q.a[R.closeMs]) || 0) - (num(p.a[R.closeMs]) || 0); });
+      var last = graded.slice(0, 10);
+      n = last.length; wins = last.filter(function (x) { return x.a[R.result] === "W"; }).length;
+      exp = last.reduce(function (s, x) { return s + num(x.a[R.model]) / 100; }, 0); src = "last";
+    } else {
+      var t = trust(id);
+      if (t.hit == null || t.exp == null || !t.settled) return null;
+      n = t.settled; wins = Math.round(n * t.hit / 100); exp = n * t.exp / 100; src = "all";
+    }
+    var diff = (wins - exp) / n;
+    var k = diff >= 0.08 ? "hot" : diff <= -0.08 ? "cold" : "steady";
+    var label = k === "hot" ? "On a run" : k === "cold" ? "In a slump" : "Steady";
+    var emoji = k === "hot" ? "🔥" : k === "cold" ? "❄️" : "😐";
+    var text = src === "last"
+      ? "Last " + n + " graded: " + wins + " won, the model expected about " + exp.toFixed(1) + "."
+      : "Overall " + Math.round(100 * wins / n) + "% won vs " + Math.round(100 * exp / n) + "% the model expected.";
+    return { k: k, label: label, emoji: emoji, text: text };
+  }
+  function formBadge(id, withLabel) {
+    var f = form(id); if (!f) return null;
+    var b = el("span", "form " + f.k, f.emoji + (withLabel ? " " + f.label : ""));
+    b.title = f.label + ". " + f.text;
+    return b;
+  }
+
+  // ---------- Plain-English bets and short market names ----------
+  var QWORDS = /^(how|will|what|which|who|when|where|is|are|does|do|can|would)\b/i;
+  function shortMarket(x) {
+    var s = String(x.a[R.market] || x.a[R.event] || "");
+    s = s.replace(/\s+(?:on|by)\s+(?:(?:Mon|Tues?|Wed(?:nes)?|Thu(?:rs)?|Fri|Sat(?:ur)?|Sun)(?:day)?,?\s+)?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?/i, "");
+    s = s.replace(/\s+at\s+\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?:\s+E[DS]T)?/i, "").replace(/\s+E[DS]T\b/, "");
+    s = s.replace(/\s+\?/, "?").replace(/\s{2,}/g, " ").trim();
+    if (!QWORDS.test(s)) s = s.replace(/\?$/, "");
+    return s;
+  }
+  function subjectOf(x) {
+    var s = shortMarket(x), m;
+    if (/^Up\/Down/i.test(String(x.a[R.type] || ""))) return s.split(/\s+/)[0] || null;
+    if ((m = s.match(/^How (?:high|low) will (?:the )?(.+?) get\b/i))) return m[1].replace(/^\w/, function (c) { return c.toUpperCase(); });
+    if (!s || /\?$/.test(s) || QWORDS.test(s)) return null;
+    s = s.replace(/\s*\([^)]*\)/g, "").replace(/\s+price(?:\s+range)?$/i, "").replace(/\s+range$/i, "").trim();
+    return s.length > 30 ? null : s;
+  }
+  // "7,849.9999" -> "7,850", "0.0849999" -> "0.085"
+  function tidy(t) {
+    return String(t).replace(/[\d,]*\.\d*?9{3,}\d*/g, function (s) {
+      var m = s.match(/^([\d,]*)\.(\d*?)9{3,}\d*$/); if (!m) return s;
+      var dec = m[2].length, v = parseNum(m[1] + "." + (m[2] || "0")) + Math.pow(10, -dec);
+      return v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: dec });
+    });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function plainBet(x, noSubj) {
+    var raw = String(x.a[R.bet] || "").replace(/^(YES:|NO:|NOT:)?\s*Full Game:\s*/i, "$1 "), m = raw.trim().match(/^(YES|NO|NOT):\s*(.*)$/i);
+    if (!m) return tidy(raw.trim()).replace(/\?$/, "");
+    var sd = m[1].toUpperCase(), body = tidy(m[2].trim()).replace(/\?$/, ""), yes = sd === "YES", type = String(x.a[R.type] || ""), subj = noSubj ? null : subjectOf(x), S = subj ? subj + " " : "", b;
+    body = body.replace(/^(\$)([\d.,]+)\s+to\s+([\d.,]+)$/, "$1$2 to $1$3");
+    if (sd === "NOT") {
+      if ((b = body.match(/^Over\s+(.+)$/i))) return "Under " + b[1];
+      if ((b = body.match(/^Under\s+(.+)$/i))) return "Over " + b[1];
+      if ((b = body.match(/^(.+?)\s+wins\b(.*)$/i))) return b[1] + " doesn't win" + b[2];
+      return "Not: " + body;
+    }
+    if (/^Touch/i.test(type)) {
+      var lvl = body.replace(/^(At least|At most|Above|Below)\s+/i, "").replace(/\s+or (above|below)$/i, ""), up = !/below/i.test(type);
+      return cap(S + (yes ? (up ? "reaches " : "drops to ") : (up ? "never reaches " : "never drops to ")) + lvl);
+    }
+    if ((b = body.match(/^Above\s+(.+)$/i))) return cap(S + (yes ? "above " : "at or below ") + b[1]);
+    if ((b = body.match(/^Below\s+(.+)$/i))) return cap(S + (yes ? "below " : "at or above ") + b[1]);
+    if ((b = body.match(/^(.+?)\s+or above$/i))) return cap(yes ? S + b[1] + " or higher" : S + "below " + b[1]);
+    if ((b = body.match(/^(.+?)\s+or below$/i))) return cap(yes ? S + b[1] + " or lower" : S + "above " + b[1]);
+    if ((b = body.match(/^(.+?)\s+to\s+(.+)$/i))) return cap(S + (yes ? "between " + b[1] + " and " + b[2] : "outside " + b[1] + "–" + b[2]));
+    if (/^Pick one/i.test(type)) return body + (yes ? " wins" : " doesn't win");
+    if (/^Mention/i.test(type)) return (yes ? "Says “" : "Doesn't say “") + body + "”";
+    if (/^Up\/Down/i.test(type) && /^(up|down)$/i.test(body)) return cap(S + (yes ? "goes " : "doesn't go ") + body.toLowerCase());
+    return (yes ? "Yes: " : "No: ") + body;
+  }
+
+  // ---------- Close times: countdown for today, day and time otherwise ----------
+  function whenText(x) {
+    var r = st.routines.get(x.id) || {}, lab = r.timeLabel === "Live" ? "Closes" : (r.timeLabel || "Closes"), c = num(x.a[R.closeMs]), now = Date.now();
+    if (c && c > now && isToday(x.a)) {
+      var mins = Math.max(1, Math.round((c - now) / 60000)), h = Math.floor(mins / 60);
+      return lab + " in " + (h ? h + "h " + (mins % 60) + "m" : mins + "m");
+    }
+    if (c && c <= now) return (lab === "Starts" ? "Started " : "Closed ") + (x.a[R.closeText] || "");
+    return lab + " " + (x.a[R.closeText] || "–");
+  }
+  function whenSpan(x, cls) { var s = el("span", cls || "when cd", whenText(x)); s._x = x; return s; }
+  function tickCountdowns() { document.querySelectorAll(".cd").forEach(function (s) { if (s._x) s.textContent = whenText(s._x); }); }
+
+  $("sort").value = st.sort;
+  $("openOnly").checked = !!st.openOnly;
+  $("worthOnly").checked = !!st.worth;
+  // "Worth a look" keeps picks rated Maybe or better (adjusted value of +$5 per $100 or more); picks with no price stay visible
+  function worthy(x) { var v = scoreOf(x); return v == null || v >= 5; }
+  function passes(x) { return (!st.openOnly || isOpen(x.a)) && (!st.worth || worthy(x)); }
+  try { $("today-date").textContent = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: TZ }); } catch (e) {}
+
+  function routineList() {
+    return Array.from(st.routines.entries())
+      .filter(function (e) { return e[0].charAt(0) !== "_"; })
+      .sort(function (a, b) { return (num(a[1].order) || 99) - (num(b[1].order) || 99); });
+  }
+  function groupList() {
+    var out = [];
+    routineList().forEach(function (e) { var g = grpOf(e[0]); if (out.indexOf(g) === -1) out.push(g); });
+    out.sort(function (a, b) { var i = GROUP_ORDER.indexOf(a), j = GROUP_ORDER.indexOf(b); return (i < 0 ? 9 : i) - (j < 0 ? 9 : j); });
+    return out;
+  }
+  function routinesIn(g) { return routineList().filter(function (e) { return grpOf(e[0]) === g; }); }
+  function effSel() {
+    if (st.sel !== "all") return st.sel;
+    if (st.grp !== "all") { var rs = routinesIn(st.grp); if (rs.length === 1) return rs[0][0]; }
+    return "all";
+  }
+
+  // Track record parsed from each routine's status line, and the model weight it earns
+  var trustCache = new Map();
+  function trust(id) {
+    var r = st.routines.get(id) || {};
+    var key = id + "|" + (r.status || "") + "|" + (r.lastRunMs || "");
+    if (trustCache.has(key)) return trustCache.get(key);
+    var s = String(r.status || ""), m, t = { settled: null, hit: null, exp: null, bm: null, bk: null, roi: null };
+    if ((m = s.match(/(\d[\d,]*)\s+settled/i))) t.settled = num(m[1].replace(/,/g, ""));
+    if ((m = s.match(/settled W\/L:\s*(\d+)/i))) t.settled = num(m[1]);
+    if ((m = s.match(/(\d+)-(\d+)\s*\(([\d.]+)%\s*hit\)/i))) { t.settled = num(m[1]) + num(m[2]); t.hit = num(m[3]); }
+    if ((m = s.match(/hit\s+([\d.]+)%/i))) t.hit = num(m[1]);
+    if ((m = s.match(/model avg\s+([\d.]+)%/i))) t.exp = num(m[1]);
+    if ((m = s.match(/Brier model\s+([\d.]+)\s+vs Kalshi\s+([\d.]+)/i))) { t.bm = num(m[1]); t.bk = num(m[2]); }
+    if ((m = s.match(/\(([-+]?[\d.]+)%\s*ROI\)/i))) t.roi = num(m[1]);
+    if (t.bm != null && t.bk != null && t.settled !== 0) {
+      if (t.bm < t.bk) { t.w = 0.7; t.cls = "good"; t.label = "Model ahead"; }
+      else { t.w = 0.3; t.cls = "bad"; t.label = "Kalshi ahead"; }
+    } else { t.w = 0.5; t.cls = "none"; t.label = "Unproven"; }
+    trustCache.set(key, t);
+    return t;
+  }
+  function blended(x) {
+    var a = x.a, mdl = num(a[R.model]), cost = num(a[R.cost]);
+    if (mdl == null || !cost) return null;
+    var mkt = num(a[R.kalshi]); if (mkt == null) mkt = cost;
+    var w = trust(x.id).w;
+    return w * mdl + (1 - w) * mkt;
+  }
+  function adjEv(x) {
+    var p = blended(x), cost = num(x.a[R.cost]);
+    if (p == null) return num(x.a[R.ev]);
+    return 100 * (p / cost - 1);
+  }
+  function scoreOf(x) { if (x.adj === undefined) x.adj = adjEv(x); return x.adj; }
+
+  // ---------- Why: turn each routine's shorthand note into plain sentences ----------
+  var ASSETS = { COPPER: "Copper", GOLD: "Gold", SILVER: "Silver", PLATINUM: "Platinum", PALLADIUM: "Palladium", WTI: "Oil (WTI)", BRENT: "Brent oil",
+    NATGAS: "Natural gas", SP500: "The S&P 500", NDX: "The Nasdaq-100", JP225: "The Nikkei 225", BTC: "Bitcoin", ETH: "Ether", SOL: "Solana", XRP: "XRP",
+    DOGE: "Dogecoin", BNB: "BNB", HYPE: "HYPE", ZEC: "Zcash", NEAR: "NEAR" };
+  function assetName(sym, x) {
+    if (ASSETS[sym]) return ASSETS[sym];
+    var ev = String(x.a[R.event] || "").replace(/^Daily\s+/i, "");
+    return ev && ev.length < 40 ? ev : sym;
+  }
+  function parseNum(s) { var n = Number(String(s).replace(/[,$¥€£%]/g, "")); return isFinite(n) ? n : null; }
+  function betLine(x) {
+    var b = String(x.a[R.bet] || "").replace(/^(YES|NO|NOT):\s*/i, "");
+    if (/\bto\b/i.test(b) && /\d\s*to\s*[\d$]/i.test(b)) return null; // ranges
+    var m = b.match(/(-?[\d][\d,]*(?:\.\d+)?)\s*([KkMmBb])?(?![a-z])/);
+    if (!m) return null;
+    var v = parseNum(m[1]), mult = { k: 1e3, m: 1e6, b: 1e9 }[(m[2] || "").toLowerCase()] || 1;
+    return v == null ? null : v * mult;
+  }
+  function side(x) {
+    var b = String(x.a[R.bet] || "");
+    if (/^(NO|NOT):/i.test(b)) return "no";
+    return "yes";
+  }
+  function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  function lineSentence(now, line, unit) {
+    if (now == null || line == null || !now) return null;
+    var pct = (line - now) / Math.abs(now) * 100;
+    if (!isFinite(pct) || Math.abs(pct) > 500) return null;
+    if (Math.abs(pct) < 0.05) return "The line is right at the current level.";
+    return "The line (" + fmtNum(line) + (unit || "") + ") is " + Math.abs(pct).toFixed(Math.abs(pct) < 1 ? 2 : 1) + "% " + (pct > 0 ? "above" : "below") + " where it is now.";
+  }
+
+  function explain(x) {
+    var a = x.a, basis = String(a[R.basis] || "").trim(), src = String(a[R.source] || ""), out = { points: [], flags: [], raw: basis };
+    var m, line = betLine(x);
+    if (!basis) return out;
+
+    // Price model: "xyz:COPPER 6.7262 x1.0021 (4 settles), sd 0.82% to close, drift +1.5%, touch=2x end"
+    if ((m = basis.match(/^(?:xyz:)?([A-Za-z0-9]+)\s+([\d,]+(?:\.\d+)?)\s+x([\d.]+)\s+\((\d+)\s+settles?\),\s*sd\s+([\d.]+)%\s+to close(.*)$/i))) {
+      var sym = m[1].toUpperCase(), now = parseNum(m[2]), mult = num(m[3]), n = num(m[4]), sd = num(m[5]), rest = m[6] || "";
+      out.points.push(assetName(sym, x) + " was at " + fmtNum(now) + " when the board ran.");
+      var ls = lineSentence(now, line); if (ls) out.points.push(ls);
+      if (mult && n && Math.abs(mult - 1) >= 0.0001) out.points.push("Past settles on this market have landed about " + (Math.abs(mult - 1) * 100).toFixed(2) + "% " + (mult > 1 ? "above" : "below") + " the live price (" + plural(n, "settle") + "), so the model shifts its estimate that way.");
+      out.points.push("A typical move from now until close is about ±" + sd + "%" + (line != null && now ? ", which is what the chance is based on." : "."));
+      var d = rest.match(/drift\s+([-+]?[\d.]+)%/i); if (d) out.points.push("It also builds in a trend of " + d[1] + "% over that time.");
+      if (/touch=2x end/i.test(rest)) out.points.push("This market pays if the price touches the line at any point before close, so the chance is roughly double the chance of finishing past it.");
+      return out;
+    }
+    // Yield model: "2Y par 4.79% (10/13) +0.00 today, sd 0.191 over 13 day(s)"
+    if ((m = basis.match(/^(\d+)([YM])\s+par\s+([\d.]+)%\s+\(([^)]+)\)\s+([-+]?[\d.]+)\s+today,\s*sd\s+([\d.]+)\s+over\s+(\d+)\s+day/i))) {
+      var term = m[1] + (m[2].toUpperCase() === "Y" ? "-year" : "-month"), lvl = num(m[3]), chg = num(m[5]);
+      out.points.push("The " + term + " Treasury yield was " + lvl + "% on " + m[4] + (chg ? ", " + (chg > 0 ? "up " : "down ") + Math.abs(chg).toFixed(2) + " today." : ", unchanged today."));
+      if (line != null) out.points.push("The line is " + line + "%, " + Math.abs(line - lvl).toFixed(2) + " points " + (line > lvl ? "above" : "below") + " that.");
+      out.points.push("Yields typically move about ±" + m[6] + " points over the " + plural(num(m[7]), "day") + " left, which sets the chance.");
+      return out;
+    }
+    // 15-minute crypto: "Price 83180.47 at the call; cost is Kalshi's midpoint plus an estimated fee"
+    if ((m = basis.match(/^Price\s+([\d.]+)\s+at the call/i))) {
+      out.points.push("Price when the call was made: " + fmtNum(num(m[1])) + ".");
+      out.points.push("The model forecasts where the price will be at the next 15-minute mark and compares it with Kalshi's line.");
+      if (/midpoint/i.test(basis)) out.points.push("The cost assumes you buy at Kalshi's midpoint plus an estimated fee.");
+      return out;
+    }
+    // Live sports: "Score at the run: 100-94, Q4 00:41"
+    if ((m = basis.match(/^Score at the run:\s*(.+)$/i))) {
+      out.points.push("Score when the pick was made: " + m[1] + ".");
+      out.points.push("The live model projects the rest of the game from this score and the time left.");
+      return out;
+    }
+    // Sports flags: "little history", "wide spread"
+    var parts = basis.split(/\s*,\s*/), known = { "little history": "Little past data on these teams or players", "wide spread": "Wide gap between buy and sell prices, so the real cost may be higher" };
+    if (parts.every(function (p) { return known[p.toLowerCase()]; })) {
+      parts.forEach(function (p) { out.flags.push(known[p.toLowerCase()]); });
+      out.points.push((src || "The sports model") + " rated this from team and player form.");
+      return out;
+    }
+    // Research: "... (median 72000, sd 9000)"
+    if ((m = basis.match(/^(.*?)\s*\(median\s+([-\d.,]+),\s*sd\s+([\d.,]+)\)\s*$/i))) {
+      var note = m[1].replace(/;\s*/g, ". ").trim(), med = parseNum(m[2]), sdv = parseNum(m[3]);
+      if (note) out.points.push(note.charAt(0).toUpperCase() + note.slice(1) + (/[.!?]$/.test(note) ? "" : "."));
+      out.points.push("Best estimate: " + fmtNum(med) + ", give or take " + fmtNum(sdv) + ".");
+      if (line != null && sdv) {
+        var z = (line - med) / sdv;
+        out.points.push(Math.abs(z) < 0.15 ? "The line (" + fmtNum(line) + ") sits right on that estimate, so it's close to a coin flip before pricing."
+          : "The line (" + fmtNum(line) + ") is " + (Math.abs(z) < 1 ? "a bit" : Math.abs(z) < 2 ? "well" : "far") + " " + (z > 0 ? "above" : "below") + " that estimate.");
+      }
+      return out;
+    }
+    // Anything else: show the note as written
+    basis.split(/\s*;\s*/).forEach(function (p) { if (p) out.points.push(p.charAt(0).toUpperCase() + p.slice(1) + (/[.!?]$/.test(p) ? "" : ".")); });
+    return out;
+  }
+
+  // ---------- Story text for "Why this pick" ----------
+  function renderStory(node, text, streaming) {
+    node.textContent = "";
+    String(text || "").split(/\n\s*\n|\n/).map(function (p) { return p.trim(); }).filter(Boolean).forEach(function (p) { node.appendChild(el("p", null, p)); });
+    if (streaming) node.classList.add("writing"); else node.classList.remove("writing");
+  }
+  function renderFallback(node, x, code) {
+    node.textContent = "";
+    var ex = explain(x), mp = num(x.a[R.model]), kp = num(x.a[R.kalshi]);
+    var lead = mp != null && kp != null
+      ? (mp > kp + 2 ? "The model is noticeably more confident in this than the market is." : mp < kp - 2 ? "The market is more confident in this than the model is, so any value comes from the price." : "The model and the market roughly agree here, so any value comes from the price.")
+      : "This routine didn't send enough to compare the model with the market.";
+    node.appendChild(el("p", null, lead + (ex.points.length ? " " + ex.points.slice(0, 3).join(" ") : "")));
+    node.appendChild(el("p", "story-note", "This routine hasn't sent a written story for this pick yet, so this is the short version."));
+  }
+  // The story is the routine's own write-up of the pick (row field 17, "why"); the board never asks Claude on its own
+  function loadStory(x, node) {
+    var story = String(x.a[R.why] || "").trim();
+    if (story) renderStory(node, story);
+    else renderFallback(node, x);
+  }
+
+  function buildWhy(x, opts) {
+    var a = x.a, t = trust(x.id), mp = num(a[R.model]), kp = num(a[R.kalshi]), cost = num(a[R.cost]), bl = blended(x), adj = scoreOf(x), tier = valueTier(adj);
+    var wrap = el("div", "why"); wrap.dataset.g = grpOf(x.id);
+    wrap.appendChild(el("h3", null, "Why this pick"));
+    var story = el("div", "story"); wrap.appendChild(story); loadStory(x, story);
+    var tg = el("button", "linkbtn numtoggle", "Show the numbers"); tg.type = "button"; tg.setAttribute("aria-expanded", "false");
+    wrap.appendChild(tg);
+    var box = el("div", "numbers"); box.hidden = true; wrap.appendChild(box);
+    tg.addEventListener("click", function (e) {
+      e.stopPropagation(); box.hidden = !box.hidden;
+      tg.textContent = box.hidden ? "Show the numbers" : "Hide the numbers"; tg.setAttribute("aria-expanded", String(!box.hidden));
+    });
+    var lead;
+    if (mp != null && kp != null) {
+      var diff = mp - kp;
+      lead = "The model gives this a " + fmtPct(mp) + " chance. Kalshi's price says " + fmtPct(kp) + ". " +
+        (Math.abs(diff) < 2 ? "They roughly agree, so any value comes from the price." : "The model is " + (diff > 0 ? "more" : "less") + " confident than the market by " + Math.round(Math.abs(diff)) + " points.");
+    } else if (mp != null) {
+      lead = "The model gives this a " + fmtPct(mp) + " chance" + (cost ? " and it costs " + cost + "¢ per $1 contract." : ".");
+    } else lead = "This routine didn't send a model chance for this pick.";
+    box.appendChild(el("p", "lead", lead));
+
+    if (mp != null) {
+      var ch = el("div", "chance");
+      function bar(name, v, cls) {
+        ch.appendChild(el("span", "nm", name)); var b = el("span", "bar " + cls), s = el("span"), target = Math.max(0, Math.min(100, v)) + "%";
+        s.style.width = "0%"; requestAnimationFrame(function () { requestAnimationFrame(function () { s.style.width = target; }); });
+        b.appendChild(s); ch.appendChild(b); ch.appendChild(el("span", "pc", fmtPct(v)));
+      }
+      bar("Model", mp, "m");
+      if (kp != null) bar("Kalshi", kp, "k");
+      if (bl != null) bar("Board uses", bl, "a");
+      box.appendChild(ch);
+    }
+
+    var ex = explain(x);
+    if (ex.points.length) {
+      var ul = el("ul", "reasons");
+      ex.points.forEach(function (p) { ul.appendChild(el("li", null, p)); });
+      box.appendChild(ul);
+    }
+    if (ex.flags.length) {
+      var fl = el("div", "flags");
+      ex.flags.forEach(function (f) { fl.appendChild(el("span", "flag", f)); });
+      box.appendChild(fl);
+    }
+    var tn = t.cls === "bad" ? labelOf(x.id) + " has been less accurate than Kalshi so far, so the board trusts Kalshi more and uses " + fmtPct(bl) + "."
+      : t.cls === "good" ? labelOf(x.id) + " has beaten Kalshi so far, so the board mostly trusts the model and uses " + fmtPct(bl) + "."
+      : labelOf(x.id) + " has no graded record yet, so the board splits the difference and uses " + fmtPct(bl) + ".";
+    if (bl != null) {
+      tn += " At " + cost + "¢ the board rates it “" + tier.t + "”: about " + fmtEv(adj) + " expected per $100.";
+      box.appendChild(el("div", "trustnote " + t.cls, tn));
+    }
+    if (ex.raw) box.appendChild(el("div", "raw", "Routine note: " + ex.raw));
+
+    if (!opts || !opts.short) {
+      var dl = el("dl", "details");
+      function d(label, val, mono) { if (val == null || val === "") return; var w = el("div"); w.appendChild(el("dt", null, label)); w.appendChild(el("dd", mono ? "mono" : null, String(val))); dl.appendChild(w); }
+      d("Event", a[R.event]);
+      d("Bet type", a[R.type]);
+      d("Cost", cost != null ? cost + "¢ incl. fee" : "", true);
+      d("Odds", a[R.odds], true);
+      d("Raw model value", fmtEv(a[R.ev]) + " / $100", true);
+      d("Source", a[R.source]);
+      d("Closes", a[R.closeText], true);
+      d("Ticker", a[R.ticker], true);
+      box.appendChild(dl);
+      if (a[R.ticker]) {
+        var cp = el("button", "copy", "Copy ticker"); cp.type = "button";
+        cp.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var done = function () { cp.textContent = "Copied"; setTimeout(function () { cp.textContent = "Copy ticker"; }, 1500); };
+          try { navigator.clipboard.writeText(String(a[R.ticker])).then(done, function () { selectText(dl.lastChild); }); } catch (err) { selectText(dl.lastChild); }
+        });
+        box.appendChild(cp);
+      }
+    }
+    return wrap;
+  }
+  function selectText(node) { if (!node) return; try { var r = document.createRange(); r.selectNodeContents(node); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+
+  function meter(x, big) {
+    var a = x.a, mp = num(a[R.model]), kp = num(a[R.kalshi]);
+    var m = el("span", "meter" + (big ? " big" : "")); m.setAttribute("aria-hidden", "true");
+    if (mp != null) { var f = el("span", "fill"); f.style.width = Math.max(0, Math.min(100, mp)) + "%"; m.appendChild(f); }
+    if (kp != null) { var t = el("span", "tick"); t.style.left = Math.max(0, Math.min(100, kp)) + "%"; m.appendChild(t); }
+    // Bar plus the model's chance as a number
+    var row = el("span", "mrow");
+    row.appendChild(m);
+    var lab = el("span", "mp", mp != null ? Math.round(mp) + "%" : "–");
+    lab.title = "Model's chance" + (kp != null ? " (Kalshi " + fmtPct(kp) + ")" : "");
+    row.appendChild(lab);
+    return row;
+  }
+
+  // ---------- Filters: sports by sport, trending topics across boards ----------
+  var SPORT_NAMES = { tennis: "Tennis", basketball: "Basketball", soccer: "Soccer", football: "Football", baseball: "Baseball", hockey: "Hockey", cricket: "Cricket", other: "Other" };
+  function sportKey(x) { return sportOf(x) || "other"; }
+  function sportIcon(sp) {
+    if (!SPORT_ICONS[sp]) return icon("Sports");
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("class", "ico"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = SPORT_ICONS[sp];
+    return s;
+  }
+  // A trending topic is a name (Trump, Fed, Bitcoin...) in many open markets on the non-sports boards (sports has its own chips);
+  // names on two or more boards rank higher
+  var SOLO = new Set("new city county state states united north south east west central election elections national international world global average temperature gas us".split(" "));
+  var STOP = new Set(("will what how which who when where whose why the and for with this that from into over under above below yes not price prices range usd smm est edt gmt utc ust highest lowest largest biggest " +
+    "daily weekly monthly week weeks month months year years today tomorrow tonight high highs low lows close closes closing end ends start more most less least than between " +
+    "top before after during total number count any next last first second third market markets jan feb mar apr may jun jul aug sep sept oct nov dec january february march " +
+    "april june july august september october november december mon tue wed thu fri sat sun monday tuesday wednesday thursday friday saturday sunday est edt " +
+    "per day days hour hours minute minutes level rate rates winner winners win wins game games match matches team teams season round final finals full half " +
+    "points point say says said announce announced announcement top get gets got hit hits reach reaches value amount average max min official officially " +
+    "kalshi question questions other others released release report reported reports").split(" "));
+  function termsOf(x) {
+    // Runs of capitalized words ("New York", "Taylor Swift") stay together; stop words are trimmed from the ends
+    var s = String(x.a[R.event] || "") + " " + String(x.a[R.market] || ""), out = new Set(), m;
+    var re = /[A-Z][a-z][A-Za-z'&-]*(?:\s+[A-Z][a-z][A-Za-z'&-]*)*|\b[A-Z]{3,5}\b|\bAI\b/g;
+    while ((m = re.exec(s))) {
+      var ws = m[0].split(/\s+/).map(function (w) { return w.replace(/'s$/, ""); });
+      while (ws.length && STOP.has(ws[0].toLowerCase())) ws.shift();
+      while (ws.length && STOP.has(ws[ws.length - 1].toLowerCase())) ws.pop();
+      if (!ws.length) continue;
+      if (ws.length > 3) { ws.forEach(function (w) { var lw = w.toLowerCase(); if (w.length > 2 && !STOP.has(lw) && !SOLO.has(lw)) out.add(w); }); continue; }
+      if (ws.length === 1 && SOLO.has(ws[0].toLowerCase())) continue;
+      var t = ws.join(" "); if (t.length >= 3 || t === "AI") out.add(t);
+    }
+    return out;
+  }
+  function computeTrending() {
+    var by = new Map();
+    st.rows.forEach(function (x) {
+      if (!isOpen(x.a) || grpOf(x.id) === "Sports" || x.id === "crypto-15m") return;
+      var mk = x.id + "|" + shortMarket(x);
+      termsOf(x).forEach(function (w) {
+        var t = by.get(w); if (!t) { t = { t: w, r: new Set(), m: new Set() }; by.set(w, t); }
+        t.r.add(x.id); t.m.add(mk);
+      });
+    });
+    function score(t) { return t.m.size * (t.r.size > 1 ? 1.5 : 1); }
+    return Array.from(by.values()).filter(function (t) { return t.m.size >= 4 || (t.r.size >= 2 && t.m.size >= 3); })
+      .sort(function (a, b) { return score(b) - score(a); }).slice(0, 10)
+      .map(function (t) { return { t: t.t, r: t.r.size, m: t.m.size }; });
+  }
+  var topicRe = { t: null, re: null };
+  function topicHit(x, t) {
+    if (topicRe.t !== t) { topicRe = { t: t, re: new RegExp("\\b" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:'s)?\\b", "i") }; }
+    return topicRe.re.test(String(x.a[R.event] || "") + " " + String(x.a[R.market] || "") + " " + String(x.a[R.bet] || ""));
+  }
+
+  // ---------- Data ----------
+  // Draw the board once every routine's picks have arrived, instead of after each piece
+  function allPresent() {
+    return routineList().every(function (e) { return (Array.isArray(e[1].chunks) ? e[1].chunks : []).every(function (c) { return st.chunks.has(c); }); });
+  }
+  var rebuildTimer = null;
+  function scheduleRebuild() {
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(rebuild, st.ready ? 200 : 60);
+  }
+  function rebuild() {
+    setTimeout(checkResults, 80);
+    if (!st.ready) {
+      if (!(st.haveR && st.haveC && allPresent())) { render(); return; }
+      st.ready = true;
+    }
+    var rows = [];
+    routineList().forEach(function (e) {
+      var id = e[0], r = e[1], ids = Array.isArray(r.chunks) ? r.chunks : [];
+      var parts = ids.map(function (c) { return st.chunks.get(c); });
+      if (parts.some(function (p) { return !p; })) return;
+      parts.forEach(function (p) { p.forEach(function (a) { rows.push({ id: id, a: a }); }); });
+    });
+    st.rows = rows;
+    st.trending = computeTrending();
+    if (st.haveR && st.haveC && rows.length) scheduleSeen();
+    if (st.haveR) {
+      if (st.sel !== "all" && !st.routines.has(st.sel)) { st.sel = "all"; save("sel", "all"); }
+      if (st.grp !== "all" && groupList().indexOf(st.grp) === -1) { st.grp = "all"; save("grp", "all"); }
+    }
+    render();
+  }
+  function inScope(x) {
+    if (st.grp !== "all" && grpOf(x.id) !== st.grp) return false;
+    var s = effSel(); if (s !== "all" && x.id !== s) return false;
+    if (st.grp === "Sports" && st.sport !== "all" && sportKey(x) !== st.sport) return false;
+    if (st.topic && !topicHit(x, st.topic)) return false;
+    return true;
+  }
+  function inTab(x) {
+    if (st.tab === "star") return st.stars.has(keyOf(x));
+    if (st.tab === "live") return isToday(x.a) && inWindow(x);
+    return true;
+  }
+  function filtered(ignoreOpen, ignoreWorth) {
+    var q = st.q.trim().toLowerCase(), starTab = st.tab === "star";
+    var out = st.rows.filter(function (x) {
+      if (!inTab(x)) return false;
+      if (!starTab) {
+        if (!inScope(x)) return false;
+        if (!ignoreOpen && st.openOnly && !isOpen(x.a)) return false;
+        if (!ignoreWorth && st.worth && !worthy(x)) return false;
+      }
+      if (!q) return true;
+      var a = x.a;
+      return [a[R.bet], a[R.market], a[R.event], a[R.ticker], a[R.type], a[R.basis], a[R.why], labelOf(x.id)].join(" ").toLowerCase().indexOf(q) !== -1;
+    });
+    var key = st.sort;
+    out.sort(function (x, y) {
+      var a = x.a, b = y.a;
+      if (key === "close") return (num(a[R.closeMs]) || 9e15) - (num(b[R.closeMs]) || 9e15);
+      if (key === "edge") return (num(b[R.edge]) || -1e9) - (num(a[R.edge]) || -1e9);
+      if (key === "model") return (num(b[R.model]) || -1e9) - (num(a[R.model]) || -1e9);
+      if (key === "raw") return (num(b[R.ev]) || -1e9) - (num(a[R.ev]) || -1e9);
+      var sx = scoreOf(x), sy = scoreOf(y);
+      return (sy == null ? -1e9 : sy) - (sx == null ? -1e9 : sx);
+    });
+    return out;
+  }
+
+  // ---------- Render ----------
+  function renderSync() {
+    var box = $("sync"), t = $("syncText");
+    if (st.dbState === "off") { box.dataset.state = "off"; t.textContent = "Offline"; return; }
+    if (!st.haveR) { box.dataset.state = "wait"; t.textContent = "Connecting…"; return; }
+    var s = st.sync && num(st.sync.syncedMs);
+    if (!s) { box.dataset.state = "wait"; t.textContent = "Waiting for sync"; return; }
+    var late = Date.now() - s > 75 * 60000;
+    box.dataset.state = late ? "late" : "live";
+    t.textContent = (late ? "Last sync " : "Live · ") + shortAgo(s);
+  }
+
+  function spotSkeleton() {
+    var spot = $("spot"); spot.hidden = false; spot.textContent = ""; delete spot.dataset.g;
+    var body = el("div", "spot-body");
+    var head = el("div", "spot-head"); head.appendChild(el("span", "eyebrow", "Best pick now")); body.appendChild(head);
+    body.appendChild(el("div", "bet", "Loading your picks…"));
+    body.appendChild(el("div", "mkt", " "));
+    var m = el("span", "meter big"); m.setAttribute("aria-hidden", "true"); body.appendChild(m);
+    body.appendChild(el("div", "spot-foot", " "));
+    spot.appendChild(body);
+  }
+
+  function renderTop() {
+    if (!st.ready && st.dbState !== "off") { spotSkeleton(); $("stats").textContent = " "; return; }
+    var open = st.rows.filter(function (x) { return isOpen(x.a); });
+    var liveOpen = open.filter(function (x) { return isToday(x.a); });
+    var stats = $("stats"); stats.textContent = "";
+    if (st.haveR) {
+      var cur = routineList().filter(function (e) { return freshness(e[1]) === "ok"; }).length, all = routineList().length;
+      var newN = open.filter(isNew).length;
+      var parts = [[open.length.toLocaleString("en-US"), "open"], [liveOpen.length.toLocaleString("en-US"), "today"]];
+      if (newN) parts.push([newN.toLocaleString("en-US"), "new"]);
+      parts.push([cur + "/" + all, "routines current"]);
+      parts.forEach(function (p, i) {
+        if (i) stats.appendChild(el("span", "sep", "·"));
+        var s = el("span"); s.appendChild(el("b", null, p[0])); s.appendChild(document.createTextNode(p[1])); stats.appendChild(s);
+      });
+    }
+    var best = null;
+    open.forEach(function (x) { var s = scoreOf(x); if (s != null && (!best || s > scoreOf(best))) best = x; });
+    var spot = $("spot");
+    if (!best || st.tab === "record") { spot.hidden = true; return; }
+    spot.hidden = false; spot.textContent = ""; spot.dataset.g = grpOf(best.id);
+    var body = el("div", "spot-body");
+    var head = el("div", "spot-head");
+    head.appendChild(el("span", "eyebrow", "Best pick now · " + labelOf(best.id)));
+    var tier = valueTier(scoreOf(best)); head.appendChild(el("span", "val " + tier.c, tier.t));
+    body.appendChild(head);
+    var sbet = el("div", "bet"); var sav = avatar(personOf(best)); if (sav) sbet.appendChild(sav); sbet.appendChild(document.createTextNode(plainBet(best))); body.appendChild(sbet);
+    body.appendChild(el("div", "mkt", shortMarket(best)));
+    body.appendChild(meter(best, true));
+    var foot = el("div", "spot-foot");
+    foot.appendChild(whenSpan(best, "cd"));
+    var btn = el("button", "spot-btn", st.spotOpen ? "Hide why" : "Why this pick"); btn.type = "button";
+    btn.addEventListener("click", function () { st.spotOpen = !st.spotOpen; renderTop(); });
+    foot.appendChild(btn);
+    body.appendChild(foot);
+    if (st.spotOpen) body.appendChild(buildWhy(best, { short: true }));
+    spot.appendChild(body);
+  }
+
+  // Scorecard for one routine (used in the routine panel and the Record view)
+  function routineCard(s) {
+    var p = el("section", "rpanel"), r = st.routines.get(s) || {};
+    p.dataset.g = grpOf(s);
+    var h = el("h2", null, r.name || s);
+    var f = freshness(r);
+    h.appendChild(el("span", "pill " + f, f === "ok" ? "Current" : f === "late" ? "Overdue" : "No run yet"));
+    var t = trust(s);
+    if (f !== "none") h.appendChild(el("span", "tr " + t.cls, t.label));
+    var fm = f !== "none" ? form(s) : null;
+    if (fm) h.appendChild(formBadge(s, true));
+    p.appendChild(h);
+    var when = [];
+    if (r.schedule) when.push(r.schedule);
+    if (r.lastRunMs) when.push("last run " + clock(r.lastRunMs) + " (" + ago(r.lastRunMs) + ")");
+    p.appendChild(el("div", "when", when.join(" · ")));
+    if (f === "none") { if (r.status) p.appendChild(el("div", "when", r.status)); return p; }
+    var facts = el("div", "facts");
+    function fact(v, lab, cls) { var sp = el("span"); sp.appendChild(el("b", cls || null, v)); sp.appendChild(document.createTextNode(" " + lab)); facts.appendChild(sp); }
+    if (t.settled != null) fact(t.settled.toLocaleString("en-US"), "settled");
+    if (t.hit != null) fact(Math.round(t.hit) + "%", t.exp != null ? "won (model expected " + Math.round(t.exp) + "%)" : "won", t.exp != null && t.hit < t.exp - 2 ? "bad" : null);
+    if (t.roi != null) fact((t.roi > 0 ? "+" : "") + t.roi + "%", "return on flat bets", t.roi < 0 ? "bad" : null);
+    if (facts.children.length) p.appendChild(facts);
+    var vtxt = t.cls === "bad" ? "Kalshi's prices have been more accurate than this model, so its picks lean toward the market."
+      : t.cls === "good" ? "This model has been more accurate than Kalshi so far, so its picks keep most of the model's view."
+      : "No graded record yet, so its picks are split evenly between the model and Kalshi.";
+    p.appendChild(el("div", "verdict " + t.cls, vtxt));
+    if (fm) p.appendChild(el("div", "when", fm.emoji + " " + fm.text));
+    var rec = recOf(s);
+    if (rec && rec.n) {
+      var open = st.recOpen.has(s);
+      if (open && st.tab === "record") p.classList.add("wide");
+      var rb = el("button", "linkbtn recbtn", open ? "Hide picks vs results" : "Picks vs results ›"); rb.type = "button"; rb.setAttribute("aria-expanded", String(open));
+      rb.addEventListener("click", function () { if (st.recOpen.has(s)) st.recOpen.delete(s); else st.recOpen.add(s); render(); });
+      p.appendChild(rb);
+      if (open) p.appendChild(recBox(s, rec));
+    }
+    return p;
+  }
+
+  // ---------- Picks vs results (records collection, written by the board sync) ----------
+  // Record row: settledMs, whenText, bet, market, model %, Kalshi %, W/L, ticker, sport
+  function recOf(s) { var r = st.routines.get(s); return r && r.rec ? st.recs.get(r.rec) || null : null; }
+  function recBox(s, rec) {
+    var f = st.recF[s] || (st.recF[s] = { res: "all", sport: "all", shown: 50 });
+    var box = el("div", "recbox"), by = rec.by || {}, sports = Object.keys(by);
+    if (f.sport !== "all" && !by[f.sport]) f.sport = "all";
+    var tot = f.sport === "all" ? { n: rec.n, w: rec.w, exp: rec.exp } : by[f.sport];
+    var sum = el("div", "recsum");
+    var pct = tot.n ? Math.round(100 * tot.w / tot.n) : 0, ep = tot.n ? Math.round(100 * tot.exp / tot.n) : 0;
+    sum.appendChild(el("b", null, tot.w + "–" + (tot.n - tot.w)));
+    sum.appendChild(document.createTextNode((f.sport === "all" ? "" : " in " + f.sport) + " over the last " + (rec.days || 7) + " days: " + pct + "% won. The model expected about " + Math.round(tot.exp) + " wins (" + ep + "%)."));
+    sum.appendChild(el("small", null, tot.w >= tot.exp + 0.5 ? "More wins than the model expected." : tot.w <= tot.exp - 0.5 ? "Fewer wins than the model expected." : "About what the model expected."));
+    box.appendChild(sum);
+    var base = rec.rows.filter(function (q) { return f.sport === "all" || q[8] === f.sport; });
+    function chips(items, cur, set) {
+      var row = el("div", "fchips"); row.setAttribute("role", "group");
+      items.forEach(function (it) {
+        var b = el("button", "chip"); b.type = "button"; b.setAttribute("aria-pressed", String(cur === it[0]));
+        b.appendChild(el("span", null, it[1])); if (it[2] != null) b.appendChild(el("span", "k", it[2]));
+        b.addEventListener("click", function () { set(it[0]); f.shown = 50; render(); });
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    }
+    if (sports.length > 1) {
+      sports.sort(function (a, b) { return by[b].n - by[a].n; });
+      chips([["all", "All sports", rec.w + "–" + (rec.n - rec.w)]].concat(sports.map(function (k) { return [k, k, by[k].w + "–" + (by[k].n - by[k].w)]; })), f.sport, function (v) { f.sport = v; });
+    }
+    var nw = base.filter(function (q) { return q[6] === "W"; }).length;
+    chips([["all", "All", base.length], ["W", "Won", nw], ["L", "Lost", base.length - nw]], f.res, function (v) { f.res = v; });
+    var rows = base.filter(function (q) { return f.res === "all" || q[6] === f.res; });
+    var ul = el("ul", "reclist");
+    rows.slice(0, f.shown).forEach(function (q) {
+      var a = []; a[R.bet] = q[2]; a[R.market] = q[3]; a[R.event] = ""; a[R.type] = ""; a[R.model] = q[4]; a[R.kalshi] = q[5];
+      var x = { id: s, a: a }, won = q[6] === "W", mp = num(q[4]), kp = num(q[5]);
+      var li = el("li", "recrow");
+      li.appendChild(el("span", "rb", plainBet(x)));
+      li.appendChild(el("span", "pill " + (won ? "won" : "lost"), won ? "Won" : "Lost"));
+      li.appendChild(el("span", "rm", q[3] + (q[8] ? " · " + q[8] : "")));
+      var rn = el("span", "rn");
+      var mt = el("span", "meter"); mt.setAttribute("aria-hidden", "true");
+      if (mp != null) { var mf = el("span", "fill"); mf.style.width = Math.max(0, Math.min(100, mp)) + "%"; mt.appendChild(mf); }
+      if (kp != null) { var mk = el("span", "tick"); mk.style.left = Math.max(0, Math.min(100, kp)) + "%"; mt.appendChild(mk); }
+      rn.appendChild(mt);
+      var m1 = el("span"); m1.appendChild(document.createTextNode("Model ")); m1.appendChild(el("b", null, fmtPct(mp))); rn.appendChild(m1);
+      if (kp != null) { var m2 = el("span"); m2.appendChild(document.createTextNode("Kalshi ")); m2.appendChild(el("b", null, fmtPct(kp))); rn.appendChild(m2); }
+      if (mp != null) rn.appendChild(el("span", won ? "call-ok" : "call-miss", mp >= 50 ? (won ? "Model called it" : "Model missed") : mp >= 25 ? (won ? "Underdog came in" : "Underdog lost") : (won ? "Long shot came in" : "Long shot missed")));
+      li.appendChild(rn);
+      li.appendChild(el("span", "rw", q[1]));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    if (rows.length > f.shown) {
+      var mb = el("button", "more-btn", "Show " + Math.min(50, rows.length - f.shown) + " more (" + (rows.length - f.shown) + " left)"); mb.type = "button";
+      mb.addEventListener("click", function () { f.shown += 50; render(); });
+      box.appendChild(mb);
+    }
+    if (rec.n > rec.rows.length) box.appendChild(el("div", "when", "The list shows the newest " + rec.rows.length.toLocaleString("en-US") + " of " + rec.n.toLocaleString("en-US") + " settled picks; the totals above count them all."));
+    return box;
+  }
+
+  function renderRecord() {
+    var box = $("recordView");
+    if (st.tab !== "record") { box.hidden = true; return; }
+    box.hidden = false; box.textContent = "";
+    box.appendChild(el("p", "rintro", "How each routine has done so far. The badge shows whether the model or Kalshi's prices have been more accurate, and the board weighs each model's picks to match. Open “Picks vs results” on a card to see each settled pick: the model's chance, Kalshi's, and how it ended."));
+    groupList().forEach(function (g) {
+      var sec = el("section", "rgroup"); sec.dataset.g = g;
+      var h = el("h2"); h.appendChild(icon(g)); h.appendChild(document.createTextNode(g)); sec.appendChild(h);
+      var cards = el("div", "rcards");
+      routinesIn(g).forEach(function (e) { cards.appendChild(routineCard(e[0])); });
+      sec.appendChild(cards);
+      box.appendChild(sec);
+    });
+  }
+
+  function renderNav() {
+    [["tLive", "live"], ["tAll", "all"], ["tStar", "star"], ["tRec", "record"]].forEach(function (p) { $(p[0]).setAttribute("aria-pressed", String(st.tab === p[1])); });
+    var liveN = 0, allN = 0, starN = 0;
+    st.rows.forEach(function (x) { if (st.stars.has(keyOf(x))) starN++; if (passes(x)) { allN++; if (isToday(x.a)) liveN++; } });
+    $("tLiveN").textContent = st.haveC ? liveN.toLocaleString("en-US") : "";
+    $("tAllN").textContent = st.haveC ? allN.toLocaleString("en-US") : "";
+    $("tStarN").textContent = st.haveC && starN ? String(starN) : "";
+
+    var picksTab = st.tab === "live" || st.tab === "all";
+    $("groupWrap").hidden = !picksTab;
+    renderCatbar(picksTab);
+    renderTopics(picksTab);
+    renderSports(picksTab);
+    renderWin();
+    if (!picksTab) { $("subWrap").hidden = true; return; }
+
+    var counts = {};
+    st.rows.forEach(function (x) { if (!inTab(x) || !passes(x) || (st.topic && !topicHit(x, st.topic))) return; var g = grpOf(x.id); counts[g] = (counts[g] || 0) + 1; });
+    var box = $("groups"); box.textContent = "";
+    function gchip(id, label) {
+      var n = id === "all" ? 1 : (counts[id] || 0);
+      var b = el("button", "chip" + (n === 0 && st.grp !== id ? " dead" : "")); b.type = "button"; b.setAttribute("aria-pressed", String(st.grp === id));
+      if (id !== "all") {
+        b.dataset.g = id; b.appendChild(icon(id));
+        if (n === 0) b.title = "Nothing " + (st.tab === "live" ? "live today" : "open") + ". " + nextRuns(id);
+      }
+      b.appendChild(el("span", null, label));
+      if (st.favs.indexOf(id) !== -1) b.appendChild(el("span", "fav", "★"));
+      b.addEventListener("click", function () { st.grp = id; st.sel = "all"; st.sport = "all"; st.shown = PAGE; save("grp", id); save("sel", "all"); save("sport", "all"); render(); });
+      box.appendChild(b);
+    }
+    gchip("all", "All");
+    // Favorite categories come first
+    var gl = groupList(), favFirst = gl.filter(function (g) { return st.favs.indexOf(g) !== -1; }).concat(gl.filter(function (g) { return st.favs.indexOf(g) === -1; }));
+    favFirst.forEach(function (g) { gchip(g, g); });
+
+    var sub = $("subs"), wrap = $("subWrap"); sub.textContent = "";
+    var rs = st.grp === "all" ? [] : routinesIn(st.grp);
+    if (rs.length < 2) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    var rc = {};
+    st.rows.forEach(function (x) { if (!inTab(x) || !passes(x) || (st.topic && !topicHit(x, st.topic))) return; rc[x.id] = (rc[x.id] || 0) + 1; });
+    function schip(id, label, n, fresh) {
+      var b = el("button", "chip sub" + (fresh === "none" || (n === 0 && st.sel !== id) ? " dead" : "")); b.type = "button"; b.setAttribute("aria-pressed", String(st.sel === id));
+      if (fresh) { b.dataset.fresh = fresh; b.appendChild(el("span", "fresh")); }
+      b.appendChild(el("span", null, label));
+      if (id !== "all" && fresh !== "none") { var t = trust(id); b.appendChild(el("span", "tr " + t.cls, t.label)); var fb = formBadge(id); if (fb) b.appendChild(fb); }
+      b.addEventListener("click", function () { st.sel = id; st.shown = PAGE; save("sel", id); render(); });
+      sub.appendChild(b);
+    }
+    schip("all", "All " + st.grp, 1, null);
+    var live = rs.filter(function (e) { return freshness(e[1]) !== "none"; }), dead = rs.filter(function (e) { return freshness(e[1]) === "none"; });
+    live.concat(dead).forEach(function (e) { schip(e[0], labelOf(e[0]), rc[e[0]] || 0, freshness(e[1])); });
+  }
+
+  // Trending topics row: tap one to see every board's picks on it, tap again to clear
+  function renderTopics(show) {
+    var wrap = $("topicWrap"), box = $("topics"); box.textContent = "";
+    var list = st.trending.slice();
+    if (st.topic && !list.some(function (t) { return t.t === st.topic; })) list.unshift({ t: st.topic, r: 0, m: 0 });
+    if (!show || !st.ready || !list.length) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    box.appendChild(el("span", "flabel", "Trending"));
+    list.forEach(function (t) {
+      var on = st.topic === t.t, b = el("button", "chip"); b.type = "button"; b.setAttribute("aria-pressed", String(on));
+      b.appendChild(el("span", null, (on ? "✕ " : "") + t.t));
+      if (t.m) { b.appendChild(el("span", "k", String(t.m))); b.title = t.m + " markets on " + t.r + (t.r === 1 ? " board" : " boards"); }
+      b.addEventListener("click", function () {
+        st.topic = on ? "" : t.t; save("topic", st.topic);
+        if (!on) { st.grp = "all"; st.sel = "all"; st.sport = "all"; save("grp", "all"); save("sel", "all"); save("sport", "all"); }
+        // Most topic markets close on later days: leave Today for All picks when Today has none
+        if (!on && st.tab === "live" && !filtered(false).length) { st.tab = "all"; save("tab", "all"); }
+        st.shown = PAGE; render();
+      });
+      box.appendChild(b);
+    });
+  }
+  // Sport chips under Sports
+  function renderSports(show) {
+    var wrap = $("sportWrap"), box = $("sportsF"); box.textContent = "";
+    if (!show || st.grp !== "Sports") { wrap.hidden = true; return; }
+    var counts = {}, order = [];
+    st.rows.forEach(function (x) {
+      if (grpOf(x.id) !== "Sports" || !inTab(x) || !passes(x) || (st.topic && !topicHit(x, st.topic))) return;
+      var s = effSel(); if (s !== "all" && x.id !== s) return;
+      var k = sportKey(x); if (!counts[k]) { counts[k] = 0; order.push(k); } counts[k]++;
+    });
+    if (st.sport !== "all" && !counts[st.sport]) { counts[st.sport] = 0; order.push(st.sport); }
+    if (order.length < 2 && st.sport === "all") { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    order.sort(function (a, b) { return (a === "other") - (b === "other") || counts[b] - counts[a]; });
+    function chip(k, label, n) {
+      var b = el("button", "chip sub"); b.type = "button"; b.setAttribute("aria-pressed", String(st.sport === k));
+      if (k !== "all") b.appendChild(sportIcon(k));
+      b.appendChild(el("span", null, label));
+      if (n != null) b.appendChild(el("span", "k", String(n)));
+      b.addEventListener("click", function () { st.sport = k; save("sport", k); st.shown = PAGE; render(); });
+      box.appendChild(b);
+    }
+    chip("all", "All sports", null);
+    order.forEach(function (k) { chip(k, SPORT_NAMES[k] || k, counts[k]); });
+  }
+
+  function renderCatbar(show) {
+    var bar = $("catbar"); bar.textContent = "";
+    if (!show || st.grp === "all") { bar.hidden = true; return; }
+    bar.hidden = false;
+    var on = st.favs.indexOf(st.grp) !== -1;
+    var b = el("button", "favbtn" + (on ? " on" : ""), on ? "★ Favorite category" : "☆ Make " + st.grp + " a favorite"); b.type = "button";
+    b.setAttribute("aria-pressed", String(on));
+    b.addEventListener("click", function () {
+      var i = st.favs.indexOf(st.grp);
+      if (i === -1) st.favs.unshift(st.grp); else st.favs.splice(i, 1);
+      save("favs", st.favs); renderNav();
+    });
+    bar.appendChild(b);
+    bar.appendChild(el("span", null, on ? "The board opens here." : "Favorites come first and the board opens on your top one."));
+  }
+
+  function renderWin() {
+    var box = $("winChips"); box.textContent = "";
+    if (st.tab !== "live") { box.hidden = true; return; }
+    box.hidden = false;
+    WINS.forEach(function (w) {
+      var b = el("button", "chip sub", w[1]); b.type = "button"; b.setAttribute("aria-pressed", String(st.win === w[0]));
+      b.addEventListener("click", function () { st.win = w[0]; save("win", w[0]); st.shown = PAGE; render(); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderFilters() {
+    var n = (st.sort !== "ev" ? 1 : 0) + (!st.openOnly ? 1 : 0) + (!st.worth ? 1 : 0) + (st.view === "all" ? 1 : 0);
+    var fn = $("filterN"); fn.hidden = !n; fn.textContent = String(n);
+    $("filterBtn").setAttribute("aria-expanded", String(st.filtersOpen));
+    $("filterPanel").hidden = !st.filtersOpen;
+    $("sort").value = st.sort; $("openOnly").checked = !!st.openOnly; $("worthOnly").checked = !!st.worth;
+  }
+
+  // Recap: today's record with best call and worst miss, plus yesterday's line if this browser saw it
+  var dotsShown = -1;
+  function renderToday() {
+    var box = $("today");
+    if (!st.ready) { box.hidden = true; return; }
+    if (st.tab !== "live" || !st.haveC) { box.hidden = true; return; }
+    box.hidden = false; box.textContent = "";
+    var rows = st.rows.filter(function (x) { return inScope(x) && isToday(x.a); });
+    var w = 0, l = 0, open = 0, pend = 0, by = {}, seq = [], best = null, worst = null;
+    rows.forEach(function (x) {
+      var a = x.a, kp = num(a[R.kalshi]), mp = num(a[R.model]);
+      if (a[R.result] === "W") {
+        w++; (by[x.id] = by[x.id] || [0, 0])[0]++; seq.push([num(a[R.closeMs]) || 0, "w"]);
+        if (kp != null && (!best || kp < best.kp)) best = { x: x, kp: kp };
+      } else if (a[R.result] === "L") {
+        l++; (by[x.id] = by[x.id] || [0, 0])[1]++; seq.push([num(a[R.closeMs]) || 0, "l"]);
+        if (mp != null && (!worst || mp > worst.mp)) worst = { x: x, mp: mp };
+      } else if (isOpen(a)) open++;
+      else pend++;
+    });
+
+    var head = el("div", "recap-head");
+    head.appendChild(el("span", "eyebrow", "Today so far"));
+    if (w + l) head.appendChild(el("span", "mood", w / (w + l) >= 0.6 ? "Good day 👍" : w / (w + l) >= 0.45 ? "Coin-flip day 🪙" : "Rough day 🌧️"));
+    box.appendChild(head);
+
+    var row = el("div", "row");
+    var lbl = el("div");
+    if (w + l) {
+      lbl.appendChild(el("div", "big", w + "–" + l));
+      lbl.appendChild(el("div", "rlbl", Math.round(100 * w / (w + l)) + "% won"));
+    } else {
+      lbl.appendChild(el("div", "nores", "No results in yet today"));
+      lbl.appendChild(el("div", "rlbl", "Wins and losses show here once a routine sends them. Right now only the 15-minute crypto calls report results."));
+    }
+    row.appendChild(lbl);
+    if (seq.length) {
+      seq.sort(function (p, q) { return p[0] - q[0]; });
+      var dots = el("div", "dots"); dots.setAttribute("aria-hidden", "true");
+      var shown = seq.slice(-40), startPop = dotsShown < 0 ? shown.length : Math.max(0, shown.length - (seq.length - dotsShown));
+      shown.forEach(function (sq, i) { dots.appendChild(el("i", sq[1] + (i >= startPop ? " pop" : ""))); });
+      row.appendChild(dots);
+    }
+    dotsShown = seq.length;
+    box.appendChild(row);
+
+    if (best || worst) {
+      var calls = el("div", "calls");
+      if (best) { var c1 = el("div", "call good"); c1.appendChild(el("span", "ck", "Best call")); c1.appendChild(el("span", "cv", plainBet(best.x) + " · Kalshi had it at " + fmtPct(best.kp))); calls.appendChild(c1); }
+      if (worst) { var c2 = el("div", "call bad"); c2.appendChild(el("span", "ck", "Worst miss")); c2.appendChild(el("span", "cv", plainBet(worst.x) + " · model said " + fmtPct(worst.mp))); calls.appendChild(c2); }
+      box.appendChild(calls);
+    }
+
+    var meta = el("div", "by");
+    var s1 = el("span"); s1.appendChild(el("b", null, open.toLocaleString("en-US"))); s1.appendChild(document.createTextNode(" still live")); meta.appendChild(s1);
+    if (pend) { var s2 = el("span"); s2.appendChild(el("b", null, pend.toLocaleString("en-US"))); s2.appendChild(document.createTextNode(" already closed")); meta.appendChild(s2); }
+    Object.keys(by).forEach(function (id) { var s3 = el("span", null, labelOf(id) + " "); s3.appendChild(el("b", null, by[id][0] + "–" + by[id][1])); meta.appendChild(s3); });
+    box.appendChild(meta);
+
+    // Save today's recap for tomorrow's "Yesterday" line (this browser only)
+    var today = etDay(Date.now());
+    if (st.grp === "all" && effSel() === "all" && w + l) {
+      save("recap." + today, { w: w, l: l, best: best ? plainBet(best.x) : null, worst: worst ? plainBet(worst.x) : null });
+    }
+    var yd = etDay(Date.now() - 86400000), y = load("recap." + yd, null);
+    if (y && y.w + y.l) {
+      var yl = "Yesterday: " + y.w + "–" + y.l + (y.best ? " · best call " + y.best : "") + (y.worst ? " · worst miss " + y.worst : "");
+      box.appendChild(el("div", "yday", yl));
+    }
+    box.appendChild(el("div", "note", "Counts picks still on the board. Only routines that report results add to the record."));
+  }
+
+  function renderPanel() {
+    var p = $("rpanel"), s = effSel();
+    if (st.tab === "star" || st.tab === "record" || s === "all" || !st.routines.has(s)) { p.hidden = true; return; }
+    var card = routineCard(s); card.id = "rpanel";
+    p.replaceWith(card);
+  }
+
+  function pickItem(x) {
+    var a = x.a, r = st.routines.get(x.id) || {}, key = keyOf(x), isOpenCard = st.openKeys.has(key);
+    var li = el("li", "pick" + (isOpen(a) ? "" : " is-closed") + (isOpenCard ? " open" : "")); li.dataset.g = grpOf(x.id);
+    var btn = el("button", "pick-main"); btn.type = "button"; btn.setAttribute("aria-expanded", String(isOpenCard));
+    var what = el("span", "what");
+    li.dataset.k = key;
+    var bet = el("span", "bet");
+    var av = avatar(personOf(x)); if (av) bet.appendChild(av);
+    if (isNew(x)) bet.appendChild(el("span", "pill new", "New")), bet.appendChild(document.createTextNode(" "));
+    bet.appendChild(document.createTextNode(plainBet(x)));
+    resultPill(bet, a);
+    what.appendChild(bet);
+    var mk = el("span", "mkt", shortMarket(x)); mk.appendChild(el("span", "lbl", " · " + labelOf(x.id))); what.appendChild(mk);
+    var ev = valBadge(x);
+    var nums = el("span", "nums");
+    var rt = el("span", "rt"); rt.appendChild(pickIcon(x)); rt.appendChild(document.createTextNode(labelOf(x.id))); nums.appendChild(rt);
+    nums.appendChild(whenSpan(x));
+    var sb = soonBadge(x); if (sb) nums.appendChild(sb);
+    nums.appendChild(el("span", "chev", isOpenCard ? "Hide" : "Why ›"));
+    btn.appendChild(what); btn.appendChild(ev); btn.appendChild(meter(x)); btn.appendChild(nums);
+    var head = el("div", "phead"); head.appendChild(btn);
+    head.appendChild(actions(x, function () { if (st.tab === "star") renderList(); else li.replaceWith(pickItem(x)); }));
+    li.appendChild(head);
+    if (isOpenCard) li.appendChild(buildWhy(x));
+    btn.addEventListener("click", function () {
+      if (st.openKeys.has(key)) st.openKeys.delete(key); else st.openKeys.add(key);
+      li.replaceWith(pickItem(x));
+    });
+    return li;
+  }
+
+  // Per-pick buttons: open the market on Kalshi, star it
+  function actions(x, rerender) {
+    var d = el("div", "acts"), k = keyOf(x), on = st.stars.has(k);
+    var u = kalshiUrl(x);
+    if (u) {
+      var a = el("a", "act", "↗"); a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.title = "Open on Kalshi"; a.setAttribute("aria-label", "Open " + plainBet(x) + " on Kalshi");
+      d.appendChild(a);
+    }
+    var s = el("button", "act star" + (on ? " on" : ""), on ? "★" : "☆"); s.type = "button";
+    s.setAttribute("aria-pressed", String(on)); s.title = on ? "Remove from Starred" : "Add to Starred";
+    s.setAttribute("aria-label", (on ? "Remove " : "Star ") + plainBet(x));
+    s.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (st.stars.has(k)) st.stars.delete(k); else st.stars.add(k);
+      save("stars", Array.from(st.stars));
+      rerender(); renderNav();
+    });
+    d.appendChild(s);
+    return d;
+  }
+
+  function resultPill(node, a) {
+    if (a[R.result] === "W" || a[R.result] === "L") { node.appendChild(document.createTextNode(" ")); node.appendChild(el("span", "pill " + (a[R.result] === "W" ? "won" : "lost"), a[R.result] === "W" ? "Won" : "Lost")); }
+    else if (!isOpen(a)) { node.appendChild(document.createTextNode(" ")); node.appendChild(el("span", "pill closed", "Closed")); }
+  }
+  function valBadge(x) { var tier = valueTier(scoreOf(x)), ev = el("span", "ev"); ev.appendChild(el("span", "val " + tier.c, tier.t)); return ev; }
+
+  // Several picks on the same market become one card with a row per line
+  function groupItem(g) {
+    var x0 = g.items[0], gid = grpOf(x0.id), showAll = st.openGroups.has(g.k);
+    var li = el("li", "pick group"); li.dataset.g = gid;
+    var head = el("div", "ghead");
+    var left = el("div", "what");
+    left.appendChild(el("span", "gtitle", shortMarket(x0)));
+    var sub = el("span", "gsub");
+    var rt = el("span", "rt"); rt.style.display = "inline-flex"; rt.appendChild(pickIcon(x0)); rt.appendChild(document.createTextNode(labelOf(x0.id))); sub.appendChild(rt);
+    sub.appendChild(el("span", null, g.items.length + " lines"));
+    var gsb = soonBadge(x0); if (gsb) sub.appendChild(gsb);
+    left.appendChild(sub);
+    head.appendChild(left);
+    head.appendChild(whenSpan(x0, "when cd"));
+    li.appendChild(head);
+    var ul = el("ul", "lines");
+    var shown = showAll ? g.items : g.items.slice(0, 4);
+    shown.forEach(function (x) {
+      var key = keyOf(x), on = st.openKeys.has(key);
+      var row = el("li", "line");
+      var b = el("button", "line-main"); b.type = "button"; b.setAttribute("aria-expanded", String(on));
+      row.dataset.k = key;
+      var lb = el("span", "lb");
+      var lav = avatar(personOf(x)); if (lav) lb.appendChild(lav);
+      if (isNew(x)) lb.appendChild(el("span", "newdot")), lb.title = "New since your last visit";
+      lb.appendChild(document.createTextNode(plainBet(x, true))); resultPill(lb, x.a); b.appendChild(lb);
+      b.appendChild(meter(x)); b.appendChild(valBadge(x));
+      b.appendChild(el("span", "lw", on ? "Hide" : "Why ›"));
+      b.addEventListener("click", function () { if (st.openKeys.has(key)) st.openKeys.delete(key); else st.openKeys.add(key); li.replaceWith(groupItem(g)); });
+      var lh = el("div", "lhead"); lh.appendChild(b);
+      lh.appendChild(actions(x, function () { if (st.tab === "star") renderList(); else li.replaceWith(groupItem(g)); }));
+      row.appendChild(lh);
+      if (on) row.appendChild(buildWhy(x));
+      ul.appendChild(row);
+    });
+    li.appendChild(ul);
+    if (g.items.length > 4) {
+      var mb = el("button", "more-lines", showAll ? "Show fewer lines" : "Show " + (g.items.length - 4) + " more lines"); mb.type = "button";
+      mb.addEventListener("click", function () { if (showAll) st.openGroups.delete(g.k); else st.openGroups.add(g.k); li.replaceWith(groupItem(g)); });
+      li.appendChild(mb);
+    }
+    return li;
+  }
+  function groupRows(rows) {
+    var groups = [], map = new Map();
+    rows.forEach(function (x) {
+      var k = x.id + "|" + shortMarket(x) + "|" + (x.a[R.closeMs] || "");
+      var g = map.get(k);
+      if (!g) { g = { k: k, items: [] }; map.set(k, g); groups.push(g); }
+      g.items.push(x);
+    });
+    return groups;
+  }
+  function nextRuns(g) {
+    return routinesIn(g).filter(function (e) { return e[1].schedule; }).map(function (e) { return labelOf(e[0]) + " runs " + e[1].schedule.charAt(0).toLowerCase() + e[1].schedule.slice(1) + "."; }).join(" ");
+  }
+
+  function renderList() {
+    var list = $("list"), empty = $("empty"), more = $("moreBtn");
+    if (!st.ready && st.dbState !== "off") {
+      list.textContent = ""; empty.hidden = true; more.hidden = true; $("count").textContent = "";
+      for (var i = 0; i < 4; i++) { var sk = el("li", "pick skcard"); sk.setAttribute("aria-hidden", "true"); sk.appendChild(el("span", "sk w60")); sk.appendChild(el("span", "sk w40")); sk.appendChild(el("span", "sk w90")); list.appendChild(sk); }
+      return;
+    }
+    var rows = filtered(false), groups = groupRows(rows);
+    list.textContent = "";
+    var frag = document.createDocumentFragment();
+    var starTab = st.tab === "star";
+    var top = st.view === "top" && !starTab, lim = top ? TOP : st.shown;
+    groups.slice(0, lim).forEach(function (g) { frag.appendChild(g.items.length > 1 ? groupItem(g) : pickItem(g.items[0])); });
+    list.appendChild(frag);
+    var left = groups.length - Math.min(groups.length, lim);
+    more.hidden = top || left <= 0;
+    more.textContent = "Show " + Math.min(PAGE, left) + " more markets (" + left.toLocaleString("en-US") + " left)";
+    $("vTop").setAttribute("aria-pressed", String(st.view === "top")); $("vAll").setAttribute("aria-pressed", String(st.view !== "top"));
+    var total = groups.length.toLocaleString("en-US") + (groups.length === 1 ? " market" : " markets") + " · " + rows.length.toLocaleString("en-US") + (rows.length === 1 ? " pick" : " picks");
+    var hidden = st.worth && st.haveR && !starTab ? filtered(false, true).length - rows.length : 0;
+    $("count").textContent = !st.haveR ? "" : (top && groups.length > TOP ? "Top " + TOP + " of " + total : total) + (hidden > 0 ? " · " + hidden.toLocaleString("en-US") + " low-value hidden" : "");
+    empty.textContent = "";
+    if (rows.length) { empty.hidden = true; return; }
+    empty.hidden = false;
+    var title, body, closed = st.haveR && st.openOnly && !st.q && !starTab ? filtered(true).length : 0;
+    if (starTab && st.haveR && !st.q) { hidden = 0; closed = 0; }
+    if (st.dbState === "off") { title = "Live data can't load in this view"; body = "The picks file didn't load. Refresh in a minute, or open the board in Claude."; }
+    else if (st.topic && !starTab && !st.q && !hidden) { title = "Nothing on “" + st.topic + "” in this view"; body = (st.tab === "live" ? "Try All picks, or tap the topic again to clear it." : "Tap the topic again to clear it."); }
+    else if (starTab && st.haveR && !st.q) { title = "Nothing starred yet"; body = "Tap ☆ on a pick you like and it waits for you here. Starred picks stay until their routine drops them from the board."; }
+    else if (st.tab === "live" && st.win !== "all" && st.haveR && !st.q && filtered(false, false).length === 0 && !hidden) { title = "Quiet " + (st.win === "1h" ? "hour" : "stretch") + " ahead"; body = "Nothing closes in the " + (st.win === "1h" ? "next hour" : "next 3 hours") + ". Try “Rest of today” to see later picks."; }
+    else if (!st.haveR) { title = "Loading your picks…"; body = "Fetching the latest board from each routine."; }
+    else if (!st.rows.length) { title = "No picks synced yet"; body = "Each routine posts its picks here when it finishes."; }
+    else if (hidden > 0) { title = "Slim pickings here"; body = hidden.toLocaleString("en-US") + (hidden === 1 ? " pick is" : " picks are") + " hidden because they rate Meh or Pass."; }
+    else if (st.q) { title = "No luck finding “" + st.q + "”"; body = "Try a team, a player, a ticker or a market word."; }
+    else if (closed) { title = "That’s a wrap for these " + closed.toLocaleString("en-US") + " picks"; body = st.tab === "live" ? "Nothing left live today in this view." : "Nothing is open in this view."; }
+    else if (st.tab === "live") { title = "Nothing on today’s slate here"; body = "Switch to All picks to see later markets."; }
+    else { title = "No picks here"; body = "This routine hasn't posted any yet."; }
+    empty.appendChild(el("strong", null, title));
+    empty.appendChild(document.createTextNode(body));
+    if (st.haveR && !st.q && st.grp !== "all") { var nr = nextRuns(st.grp); if (nr) empty.appendChild(el("span", "next", nr)); }
+    if (hidden > 0) {
+      var hb = el("button", "show-closed", "Show all values"); hb.type = "button";
+      hb.addEventListener("click", function () { st.worth = false; save("worth", false); $("worthOnly").checked = false; render(); });
+      empty.appendChild(document.createElement("br")); empty.appendChild(hb);
+    } else if (closed) {
+      var b = el("button", "show-closed", "Show closed picks"); b.type = "button";
+      b.addEventListener("click", function () { st.openOnly = false; save("open", false); $("openOnly").checked = false; render(); });
+      empty.appendChild(document.createElement("br")); empty.appendChild(b);
+    }
+  }
+
+  function render() {
+    renderSync(); renderTop(); renderNav(); renderRecord(); renderFilters();
+    var board = st.tab !== "record";
+    $("boardView").hidden = !board;
+    if (!board) return;
+    renderToday(); renderPanel(); renderList();
+  }
+
+  function setTab(t) { st.tab = t; st.shown = PAGE; save("tab", t); render(); }
+  $("tStar").addEventListener("click", function () { setTab("star"); });
+  $("tRec").addEventListener("click", function () { setTab("record"); });
+  $("filterBtn").addEventListener("click", function () { st.filtersOpen = !st.filtersOpen; renderFilters(); });
+  $("resetF").addEventListener("click", function () {
+    st.sort = "ev"; st.openOnly = true; st.worth = true; st.view = "top"; st.shown = PAGE;
+    save("sort", "ev"); save("open", true); save("worth", true); save("view", "top"); render();
+  });
+
+  // First-visit guide, reopened with the ? button
+  function showGuide(on) { $("guide").hidden = !on; }
+  showGuide(!load("guideDone", false));
+  $("helpBtn").addEventListener("click", function () { showGuide($("guide").hidden); });
+  $("guideClose").addEventListener("click", function () { save("guideDone", true); showGuide(false); });
+
+  // Back to top
+  var topTick = false;
+  window.addEventListener("scroll", function () {
+    if (topTick) return; topTick = true;
+    requestAnimationFrame(function () { topTick = false; $("toTop").hidden = window.scrollY < 900; });
+  }, { passive: true });
+  $("toTop").addEventListener("click", function () {
+    var reduce = false; try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  });
+
+  $("tLive").addEventListener("click", function () { setTab("live"); });
+  $("tAll").addEventListener("click", function () { setTab("all"); });
+  $("q").addEventListener("input", function (e) { st.q = e.target.value; st.shown = PAGE; renderList(); });
+  $("sort").addEventListener("change", function (e) { st.sort = e.target.value; st.shown = PAGE; save("sort", st.sort); renderFilters(); renderList(); });
+  $("openOnly").addEventListener("change", function (e) { st.openOnly = e.target.checked; st.shown = PAGE; save("open", st.openOnly); render(); });
+  $("worthOnly").addEventListener("change", function (e) { st.worth = e.target.checked; st.shown = PAGE; save("worth", st.worth); render(); });
+  $("moreBtn").addEventListener("click", function () { st.shown += PAGE; renderList(); });
+  $("vTop").addEventListener("click", function () { st.view = "top"; save("view", "top"); renderFilters(); renderList(); });
+  $("vAll").addEventListener("click", function () { st.view = "all"; st.shown = PAGE; save("view", "all"); renderFilters(); renderList(); });
+  setInterval(function () { renderSync(); renderNav(); tickCountdowns(); if (st.tab === "live") renderToday(); }, 30000);
+  try {
+    new IntersectionObserver(function (es) { $("nav").classList.toggle("stuck", !es[0].isIntersecting); }).observe($("sentinel"));
+  } catch (e) {}
+
+  function parseChunk(d) {
+    if (!d) return null;
+    try { var rows = typeof d.rows === "string" ? JSON.parse(d.rows) : d.rows; return Array.isArray(rows) ? rows : []; } catch (e) { return []; }
+  }
+
+  function staticRec(d) { d = d || {}; return { n: num(d.n) || 0, w: num(d.w) || 0, exp: num(d.exp) || 0, days: num(d.days) || 7, by: d.by || {}, rows: parseChunk(d) || [] }; }
+  // Outside Claude (the GitHub Pages copy): read board-data.json, written by picks-dashboard-export.ps1, and re-read it every 5 minutes
+  function loadStatic() {
+    fetch("board-data.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (d) {
+      var m = new Map(), ch = new Map(), rc = new Map();
+      Object.keys(d.routines || {}).forEach(function (k) { m.set(k, d.routines[k]); });
+      Object.keys(d.chunks || {}).forEach(function (k) { ch.set(k, parseChunk({ rows: d.chunks[k] })); });
+      Object.keys(d.records || {}).forEach(function (k) { rc.set(k, staticRec(d.records[k])); });
+      st.sync = m.get("_sync") || null; st.routines = m; st.chunks = ch; st.recs = rc;
+      st.haveR = st.haveC = true; st.dbState = "on"; st.ready = true; trustCache.clear(); rebuild();
+    }).catch(function () { if (!st.haveR) { st.dbState = "off"; render(); } });
+  }
+
+  render();
+  var c = window.claude;
+  if (!c || typeof c.use !== "function") { loadStatic(); setInterval(loadStatic, 300000); return; }
+  c.use("db").then(function (db) {
+    if (!db) { st.dbState = "off"; render(); return; }
+    st.dbState = "on";
+    db.collection("routines").onSnapshot(function (snap) {
+      var m = new Map();
+      snap.docs.forEach(function (d) { if (d.exists) m.set(d.id, d.data()); });
+      st.sync = m.get("_sync") || null;
+      var first = !st.haveR;
+      st.routines = m; st.haveR = true; trustCache.clear(); scheduleRebuild();
+      // Never wait more than 3 seconds for every piece before drawing the board
+      if (first) setTimeout(function () { if (!st.ready) { st.ready = true; rebuild(); } }, 3000);
+    }, function () { st.dbState = "off"; render(); });
+    db.collection("chunks").onSnapshot(function (snap) {
+      snap.docChanges().forEach(function (ch) {
+        if (ch.type === "removed") st.chunks.delete(ch.doc.id);
+        else st.chunks.set(ch.doc.id, parseChunk(ch.doc.data()));
+      });
+      st.haveC = true; scheduleRebuild();
+    }, function () { st.dbState = "off"; render(); });
+    db.collection("records").onSnapshot(function (snap) {
+      snap.docChanges().forEach(function (ch) {
+        if (ch.type === "removed") { st.recs.delete(ch.doc.id); return; }
+        var d = ch.doc.data() || {};
+        st.recs.set(ch.doc.id, { n: num(d.n) || 0, w: num(d.w) || 0, exp: num(d.exp) || 0, days: num(d.days) || 7, by: d.by || {}, rows: parseChunk(d) || [] });
+      });
+      if (st.ready) render();
+    }, function () {});
+  }, function () { st.dbState = "off"; render(); });
+})();
+</script>
+
+</body></html>
